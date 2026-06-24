@@ -59,7 +59,7 @@ See the [Architecture section](README.md#architecture) of the README for the ful
 
 ## 6. Issues & where work is tracked
 
-File bugs and feature ideas as **GitHub Issues**, and start design conversations in **Discussions**. The maintainers triage from there.
+We track work in **[beads](https://github.com/gastownhall/beads)** (`bd`) — the backlog lives in `.beads/` right in the repo, so after cloning you can see what's open with `bd ready` / `bd list` (install bd, then `bd prime` for the workflow). Prefer not to install anything? File bugs and ideas as **GitHub Issues**, or start design conversations in **Discussions** — the maintainers triage those into beads.
 
 As in §8, anything beyond a trivial fix should be tied to an issue we've already agreed on **before** you open a PR — check for an existing issue (or open one), get a 👍 on the approach, and comment on the one you're taking so two people don't build the same thing.
 
