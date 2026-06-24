@@ -52,10 +52,9 @@ scratch/
 .beads-credential-key
 .beads/.beads-credential-key
 .beads/export-state.json
+.beads/interactions.jsonl
 
 # --- public repo additions (pre-publish) ---
-# Issue tracking is maintained by the maintainers outside this repo.
-.beads/
 # GTA map tiles are not bundled (Rockstar imagery). Drop your own here, or set
 # VITE_MAP_TILE_BASE_URL. The README stays tracked; everything else is ignored.
 src/renderer/public/assets/maps/*
