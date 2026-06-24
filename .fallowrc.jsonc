@@ -1,0 +1,43 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  // Migrated from knip.json
+  "entry": [
+    "src/main/index.ts",
+    "src/preload/index.ts",
+    "src/renderer/src/main.tsx",
+    "electron.vite.config.ts",
+    // Staged vendored libraries — Vercel AI SDK + shadcn primitives. Pulled in
+    // intentionally for future wiring (see 2026-05-26 session). Treating them as
+    // entry points means all their exports count as "library surface" (used) and
+    // their imports keep the corresponding deps marked as used.
+    "src/renderer/src/components/ai-elements/**/*.tsx",
+    "src/renderer/src/components/ui/**/*.tsx"
+  ],
+  "ignorePatterns": [
+    "src/preload/index.d.ts",
+    "src/renderer/src/env.d.ts",
+    // Unrelated sub-projects with their own package.json / build.
+    "gamma/**",
+    "scratch/**",
+    // Supabase Deno edge functions — separate runtime; each index.ts is a
+    // Deno.serve entry point with no importers, so fallow can't model them as
+    // a TS project (it would flag every function as an unreachable dead file).
+    "supabase/**"
+  ],
+  "ignoreDependencies": [
+    "tailwindcss",
+    "@ai-sdk/anthropic",
+    "tw-animate-css",
+    "@copilotkit/aimock",
+    "@playwright/test",
+    // Used only via type imports in src/preload/index.d.ts and src/renderer/src/env.d.ts,
+    // both of which are in ignorePatterns — so Fallow can't see the usage.
+    "@electron-toolkit/preload",
+    // Used in supabase/functions/* via Deno JSR imports (not Node) — listed in
+    // each function's deno.json. Not a Node dep.
+    "@supabase/functions-js",
+    // Used only by supabase/functions/* via Deno's `npm:stripe` specifier, never
+    // imported in the Electron app's src/. Not a Node-app dep.
+    "stripe"
+  ]
+}

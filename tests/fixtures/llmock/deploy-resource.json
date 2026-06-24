@@ -1,0 +1,22 @@
+{
+  "fixtures": [
+    {
+      "match": {
+        "userMessage": "deploy the carwash resource",
+        "hasToolResult": false
+      },
+      "response": {
+        "toolCalls": [
+          { "name": "deploy_resource", "arguments": { "resource": "carwash" } }
+        ]
+      }
+    },
+    {
+      "match": {
+        "userMessage": "deploy the carwash resource",
+        "hasToolResult": true
+      },
+      "response": { "content": "Done." }
+    }
+  ]
+}

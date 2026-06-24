@@ -1,0 +1,70 @@
+# CI gate (fivem-studio-rf6 / testing strategy in CLAUDE.md "Build & Test").
+# Dormant until a GitHub remote exists; once pushed, it gates every PR + main push.
+# Runs Tier 0 (static) + Tier 1 (unit/agent via AIMock — deterministic, no credits).
+# Ubuntu is fine: the vitest suite is platform-agnostic; Windows-only code (fxdk/koffi)
+# has manual tests, and packaging (build:win) is a release step, not a per-PR gate.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: ["**"]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Tier 0 + Tier 1
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck (node + web)
+        run: npm run typecheck
+
+      - name: Lint + format (Biome)
+        run: npm run check
+
+      - name: Unit + agent tests (Vitest + AIMock — no credits)
+        run: npm run test
+
+      - name: Dead-code scan (fallow, non-blocking)
+        run: npm run fallow
+        continue-on-error: true
+
+  edge-functions:
+    name: Edge functions (deno check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: deno check (npm-free functions)
+        # Bare `deno check` can't resolve npm: specifiers the way Supabase's edge
+        # runtime does (it walks up to the repo's package.json). So type-check only
+        # the functions with no npm: imports; the npm-importing ones (Stripe) are
+        # validated via `supabase functions serve` instead (see CLAUDE.md Build & Test).
+        run: |
+          for d in supabase/functions/*/; do
+            f="${d}index.ts"
+            [ -f "$f" ] || continue
+            if grep -q "npm:" "$f"; then
+              echo "skip $f (npm imports — validated via supabase functions serve)"
+            else
+              echo "checking $f"
+              # cd in so deno picks up the function's deno.json import map.
+              (cd "$d" && deno check index.ts)
+            fi
+          done

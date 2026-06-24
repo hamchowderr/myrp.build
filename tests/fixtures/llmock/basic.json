@@ -1,0 +1,8 @@
+{
+  "fixtures": [
+    {
+      "match": { "userMessage": "ping" },
+      "response": { "content": "pong from ox" }
+    }
+  ]
+}

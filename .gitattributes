@@ -1,0 +1,16 @@
+# Normalize line endings: LF in the repo, auto on checkout.
+# Fixes the ~10.7k prettier "Delete CR" warnings at the root (was: core.autocrlf=true
+# with no .gitattributes). Biome also enforces lineEnding=lf in biome.json.
+* text=auto eol=lf
+
+# Binary / generated assets — never normalize.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.node binary

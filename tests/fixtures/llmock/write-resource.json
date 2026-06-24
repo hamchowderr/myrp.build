@@ -1,0 +1,22 @@
+{
+  "fixtures": [
+    {
+      "match": { "userMessage": "make manifest", "hasToolResult": false },
+      "response": {
+        "toolCalls": [
+          {
+            "name": "mastra_workspace_write_file",
+            "arguments": {
+              "path": "[local]/test-resource/fxmanifest.lua",
+              "content": "fx_version 'cerulean'\ngame 'gta5'\nname 'test-resource'\n"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "match": { "userMessage": "make manifest", "hasToolResult": true },
+      "response": { "content": "Wrote fxmanifest.lua for test-resource." }
+    }
+  ]
+}

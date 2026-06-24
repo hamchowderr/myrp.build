@@ -1,0 +1,72 @@
+# Variant of electron-builder.yml with code signing disabled.
+# Used by `npm run build:unpack:nosign` for fast local prod-flow iteration
+# (Playwright smoke against dist/win-unpacked exe). Mirror any change in the
+# primary electron-builder.yml here EXCEPT win.azureSignOptions, which is
+# intentionally omitted so electron-builder skips the Azure Trusted Signing
+# step (which requires AZURE_TENANT_ID/CLIENT_ID/CLIENT_SECRET to be injected
+# via `infisical run` — not desired for local iteration).
+appId: com.otakusolutions.myrp-build
+productName: myRP.build
+directories:
+  buildResources: build
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableCookieEncryption: true
+  enableEmbeddedAsarIntegrityValidation: false
+  onlyLoadAppFromAsar: false
+  loadBrowserProcessSpecificV8Snapshot: false
+  grantFileProtocolExtraPrivileges: true
+files:
+  # ALLOWLIST — mirrors electron-builder.yml (see that file for the full why).
+  # Bare exclusions packed the whole project root incl. actively-written build
+  # logs → corrupt app.asar → exit(1). Restrict to the app surface only.
+  - "out/**"
+  - "package.json"
+  - "resources/**"
+  - "skills/**"
+  - "node_modules/**"
+  - "!**/.vscode/*"
+  - "!**/*.{log,txt}"
+  - "!{.env,.env.*,.npmrc}"
+asarUnpack:
+  - "resources/**"
+  - "skills/**"
+  # onnxruntime-node native addon + its sibling DLLs must live on the real FS, not
+  # inside app.asar, or fastembed's local embeddings fail to load (see the full why
+  # in electron-builder.yml). fivem-studio-s1f9.
+  - "node_modules/onnxruntime-node/bin/**"
+win:
+  executableName: myRP.build
+  # NOTE: azureSignOptions intentionally omitted — see top-of-file.
+nsis:
+  artifactName: myRP.build-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+mac:
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    - NSCameraUsageDescription: Application requests access to the device's camera.
+    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
+    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
+    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+  notarize: false
+dmg:
+  artifactName: ${name}-${version}.${ext}
+linux:
+  target:
+    - AppImage
+    - snap
+    - deb
+  maintainer: otakusolutions.io
+  category: Utility
+appImage:
+  artifactName: ${name}-${version}.${ext}
+npmRebuild: false
+publish:
+  provider: github
+  owner: hamchowderr
+  repo: myrp.build
+  releaseType: draft

@@ -1,0 +1,25 @@
+{
+  "fixtures": [
+    {
+      "match": {
+        "userMessage": "delete the victim resource",
+        "hasToolResult": false
+      },
+      "response": {
+        "toolCalls": [
+          {
+            "name": "mastra_workspace_delete",
+            "arguments": { "path": "[local]/victim", "recursive": true }
+          }
+        ]
+      }
+    },
+    {
+      "match": {
+        "userMessage": "delete the victim resource",
+        "hasToolResult": true
+      },
+      "response": { "content": "Done." }
+    }
+  ]
+}

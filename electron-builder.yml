@@ -1,0 +1,121 @@
+appId: com.otakusolutions.myrp-build
+productName: myRP.build
+directories:
+  buildResources: build
+# Skip computing ASAR integrity hashes at build time (electron-builder 26.13+).
+# We already disable runtime ASAR-integrity validation via electronFuses
+# (enableEmbeddedAsarIntegrityValidation:false — the Windows file:// black-screen
+# fix, fivem-studio-zsl), so computing the hashes is wasted work and keeps the
+# build/config self-consistent.
+disableAsarIntegrity: true
+# Custom protocol scheme for Clerk OAuth + email sign-up callback (fivem-studio-5np).
+# Clerk's API rejects file:// in redirect_url with prohibited_redirect_url; the canonical
+# fix every major Electron OAuth app uses is registering a myrpbuild:// scheme so the
+# OS routes the post-OAuth callback URL back into the running app. electron-builder
+# writes the Windows registry entries, macOS Info.plist, and Linux .desktop at install
+# time — `npm run dev` won't pick this up; you need a packaged build to test the round-trip.
+protocols:
+  - name: myRP.build
+    schemes:
+      - myrpbuild
+# Electron security fuses (checklist #19, fivem-studio-9m4) — native
+# electron-builder integration, which also injects the ASAR integrity hashes
+# (a manual @electron/fuses flipFuses would break that). Recommended hardened set:
+electronFuses:
+  runAsNode: false # block ELECTRON_RUN_AS_NODE relaunch-as-Node
+  enableNodeOptionsEnvironmentVariable: false # block NODE_OPTIONS injection
+  enableNodeCliInspectArguments: false # block --inspect of the packaged app
+  enableCookieEncryption: true # encrypt the cookie store at rest
+  # ASAR integrity validation is DISABLED on Windows (fivem-studio-zsl): the
+  # Windows ElectronAsar PE-integrity path is fragile (electron/electron#43514)
+  # and was rejecting the renderer's index.html from the asar at runtime
+  # (Chromium file:// loader → ERR_FILE_NOT_FOUND → black screen), even though
+  # the file is present and valid. Node's require path (main process) worked,
+  # confirming the asar itself is intact. Re-enable only with a verified
+  # ElectronAsar resource + a slim asar. onlyLoadAppFromAsar is paired with it.
+  enableEmbeddedAsarIntegrityValidation: false
+  onlyLoadAppFromAsar: false
+  loadBrowserProcessSpecificV8Snapshot: false
+  # MUST stay true (fivem-studio-zsl): when false, the file:// protocol loses the
+  # privileges Electron needs to read files from inside app.asar, so the renderer's
+  # index.html fails to load (Chromium file:// → ERR_FILE_NOT_FOUND → black screen),
+  # even though main (Node require) loads fine. This — NOT asar integrity — was the
+  # black-screen root cause. Confirmed by flipping this fuse on a built binary.
+  grantFileProtocolExtraPrivileges: true
+files:
+  # ALLOWLIST (fivem-studio uc3). MUST be a positive allowlist, not bare
+  # exclusions. A previous all-exclusion list expanded to "**/*" and packed the
+  # ENTIRE project root — gamma/, scratch/, docs/, .beads/, .claude/, supabase/,
+  # and (fatally) the actively-written build logs _build-*.log / build-*.txt /
+  # dev-output.log — into app.asar (33k files / ~967 MB). A log file that GROWS
+  # while electron-builder is packing it desyncs every subsequent asar offset, so
+  # the real package.json + out/main/index.js end up pointing at garbage bytes →
+  # Electron can't parse the asar's package.json `main` → silent exit(1) on launch.
+  # Restrict to the actual app surface. (renderer/main/preload are bundled into out/.)
+  - "out/**"
+  - "package.json"
+  - "resources/**"
+  - "skills/**"
+  - "node_modules/**"
+  - "!**/.vscode/*"
+  - "!**/*.{log,txt}"
+  - "!{.env,.env.*,.npmrc}"
+asarUnpack:
+  - "resources/**"
+  # ox knowledge skills are read at runtime by the Mastra workspace's
+  # LocalFilesystem (app.getAppPath()/skills), so they must live on the real
+  # filesystem, not inside app.asar.
+  - "skills/**"
+  # fastembed (local 384-dim embeddings) runs on onnxruntime-node, a native addon.
+  # A native .node CANNOT be loaded from inside app.asar, AND onnxruntime_binding.node
+  # dynamically loads sibling DLLs (onnxruntime.dll / DirectML.dll) from its own dir
+  # via the OS loader — so the WHOLE bin tree (not just the .node) must be unpacked,
+  # or LoadLibrary fails at runtime. electron-builder's smartUnpack only handles the
+  # .node, leaving the DLLs trapped → must unpack bin/** explicitly (fivem-studio-s1f9).
+  # (The bge-small model is NOT bundled — it downloads to ~/.cache/mastra at first use.)
+  - "node_modules/onnxruntime-node/bin/**"
+win:
+  executableName: myRP.build
+  # Azure Trusted Signing (cloud HSM — no hardware token). Account/profile set up
+  # 2026-05-27 under Otaku Financial Management LLC (cert subject must match
+  # publisherName). The three auth secrets (AZURE_TENANT_ID / AZURE_CLIENT_ID /
+  # AZURE_CLIENT_SECRET) are read from the environment by electron-builder's
+  # EnvironmentCredential — inject them at build time via `infisical run`, e.g.
+  #   infisical run --projectId <id> --recursive -- npm run build:win
+  # Requires the `TrustedSigning` PowerShell module on the build machine
+  # (Install-Module -Name TrustedSigning -Force).
+  azureSignOptions:
+    publisherName: Otaku Financial Management LLC
+    endpoint: https://eus.codesigning.azure.net/
+    codeSigningAccountName: otakusigning
+    certificateProfileName: otaku-public-trust
+nsis:
+  artifactName: myRP.build-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+mac:
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    - NSCameraUsageDescription: Application requests access to the device's camera.
+    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
+    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
+    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+  notarize: false
+dmg:
+  artifactName: ${name}-${version}.${ext}
+linux:
+  target:
+    - AppImage
+    - snap
+    - deb
+  maintainer: otakusolutions.io
+  category: Utility
+appImage:
+  artifactName: ${name}-${version}.${ext}
+npmRebuild: false
+publish:
+  provider: github
+  owner: hamchowderr
+  repo: myrp.build
+  releaseType: draft
