@@ -1,11 +1,11 @@
 /**
- * Servers dashboard — the landing surface (fivem-studio-dnx8.3).
+ * Servers dashboard — the landing surface.
  *
  * A card per registered server (name, live status, port, resource count, last
  * opened) with Open / Manage actions, plus an Add-server card. Every field is
  * composed live at render time from its single source — status from a port ping,
  * resources from the [local] dir, identity/port from the local registry record —
- * nothing derived is persisted. Design: design/app-shell-mockup.html (dnx8.6).
+ * nothing derived is persisted. Design: design/app-shell-mockup.html.
  */
 import { AddServerDialog } from "@renderer/components/AddServerDialog";
 import { Button } from "@renderer/components/ui/button";

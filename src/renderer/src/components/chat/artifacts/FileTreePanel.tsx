@@ -11,6 +11,7 @@ import {
   FolderTree,
   Globe,
   Loader2,
+  MonitorPlay,
   Palette,
   Play,
   RotateCcw,
@@ -45,6 +46,7 @@ interface FileTreePanelProps {
 export function FileTreePanel({ tree, lastResult, selectedFile, onFileClick }: FileTreePanelProps) {
   const {
     serverResources,
+    nuiResources,
     expandedResource,
     resourceFiles,
     loadingResources,
@@ -100,6 +102,15 @@ export function FileTreePanel({ tree, lastResult, selectedFile, onFileClick }: F
                     <FolderTree className="size-3 shrink-0" />
                     <span className="flex-1 truncate text-left">{name}</span>
                   </button>
+                  {nuiResources.has(name) && (
+                    <span
+                      title="Has an NUI page — open the NUI Preview tab to view it"
+                      className="flex shrink-0 items-center gap-0.5 rounded-sm bg-orange-400/10 px-1 text-[8px] font-medium text-orange-400"
+                    >
+                      <MonitorPlay className="size-2.5" />
+                      UI
+                    </span>
+                  )}
                   {isGenerated && (
                     <span className="shrink-0 rounded-sm bg-primary/10 px-1 text-[8px] text-primary">
                       new

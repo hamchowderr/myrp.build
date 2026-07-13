@@ -1,5 +1,5 @@
 /**
- * Electron-free logger for the agent + tools (fivem-studio-studio-decouple).
+ * Electron-free logger for the agent + tools.
  *
  * Mastra's recommended Electron structure keeps the agent code free of Electron
  * imports so `mastra dev` / Studio (and the eval/AIMock harnesses) can bundle and

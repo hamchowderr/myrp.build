@@ -15,7 +15,7 @@ game 'gta5'
 lua54 'yes'
 
 -- Resource metadata
-author 'FiveM Studio'
+author 'myRP.build'
 description 'Resource description here'
 version '1.0.0'
 
@@ -191,7 +191,7 @@ fx_version 'cerulean'
 game 'gta5'
 lua54 'yes'
 
-author 'FiveM Studio'
+author 'myRP.build'
 description 'Simple resource'
 version '1.0.0'
 
@@ -219,7 +219,7 @@ fx_version 'cerulean'
 game 'gta5'
 lua54 'yes'
 
-author 'FiveM Studio'
+author 'myRP.build'
 description 'Full-featured resource'
 version '1.0.0'
 
@@ -260,7 +260,7 @@ fx_version 'cerulean'
 game 'gta5'
 lua54 'yes'
 
-author 'FiveM Studio'
+author 'myRP.build'
 description 'Client-only HUD'
 version '1.0.0'
 

@@ -18,7 +18,9 @@
       "!tests/fixtures",
       "!tests/**/.results",
       "!scratch",
-      "!**/*.d.ts"
+      "!**/*.d.ts",
+      "!**/.claude",
+      "!src/types/database.ts"
     ]
   },
   "formatter": {

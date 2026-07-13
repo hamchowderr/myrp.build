@@ -1,4 +1,4 @@
--- ── Mastra observational memory (z8j8.3) ─────────────────────────────────────
+-- ── Mastra observational memory ─────────────────────────────────────
 -- Storage for Mastra's observer/reflector memory. The intricate observe/buffer/
 -- reflect LOGIC lives in @mastra/memory; the storage layer is mechanical CRUD on
 -- ONE record. We store the full ObservationalMemoryRecord as a jsonb document

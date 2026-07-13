@@ -1,7 +1,7 @@
 /**
- * smoke_test_resource tool (epic 5hx / m7f) — the agent's runtime self-verify step.
+ * smoke_test_resource tool — the agent's runtime self-verify step.
  *
- * Unlike deploy_resource (445.2, approval-gated, inspects only the synchronous RCON
+ * Unlike deploy_resource (approval-gated, inspects only the synchronous RCON
  * reply), this VERIFIES the resource actually loads by scanning the server console
  * for the ASYNC load result (Lua errors, missing deps, parse failures that appear on
  * stdout after `ensure` returns). It is intentionally NOT approval-gated: it's a test

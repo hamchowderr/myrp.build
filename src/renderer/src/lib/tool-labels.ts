@@ -1,5 +1,5 @@
 /**
- * Friendly labels for AI-Elements Tool headers (fivem-studio-k8v). Maps the raw
+ * Friendly labels for AI-Elements Tool headers. Maps the raw
  * Mastra workspace/skill tool names (the UIMessage tool part `type`, which is
  * `tool-<name>`) to short human verbs, and appends the relevant target (file
  * path / skill name / query) pulled from the tool input.

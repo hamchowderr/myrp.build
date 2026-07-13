@@ -1,4 +1,4 @@
--- ── Mastra chat search (eh2g #4 — Foreman parity) ───────────────────────────
+-- ── Mastra chat search (Foreman parity) ───────────────────────────
 -- A single SECURITY DEFINER read RPC that searches a resource's conversations by
 -- TITLE and message CONTENT and returns one row per matching thread with a
 -- snippet around the body match. Foreman does this client-side across 4 queries;

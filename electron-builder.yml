@@ -2,14 +2,22 @@ appId: com.otakusolutions.myrp-build
 productName: myRP.build
 directories:
   buildResources: build
+# Prune non-target native binaries (onnxruntime-node + koffi) from the unpacked
+# tree after each pack — a Windows installer only needs win32/x64, so the other
+# platforms' prebuilt binaries (~270 MB) are pure download bloat.
+afterPack: ./build/prune-native.cjs
+# Prefetch bundled binary assets into build/ before packing so the extraResources
+# entries below can bundle them: fastembed bge-small + lua-language-server.
+# Idempotent (skips whatever's already present).
+beforePack: ./build/prefetch-bundled-assets.cjs
 # Skip computing ASAR integrity hashes at build time (electron-builder 26.13+).
 # We already disable runtime ASAR-integrity validation via electronFuses
 # (enableEmbeddedAsarIntegrityValidation:false — the Windows file:// black-screen
-# fix, fivem-studio-zsl), so computing the hashes is wasted work and keeps the
+# fix), so computing the hashes is wasted work and keeps the
 # build/config self-consistent.
 disableAsarIntegrity: true
-# Custom protocol scheme for Clerk OAuth + email sign-up callback (fivem-studio-5np).
-# Clerk's API rejects file:// in redirect_url with prohibited_redirect_url; the canonical
+# Custom protocol scheme for the Supabase OAuth + email sign-up callback.
+# A file:// redirect_url is rejected with prohibited_redirect_url; the canonical
 # fix every major Electron OAuth app uses is registering a myrpbuild:// scheme so the
 # OS routes the post-OAuth callback URL back into the running app. electron-builder
 # writes the Windows registry entries, macOS Info.plist, and Linux .desktop at install
@@ -18,7 +26,7 @@ protocols:
   - name: myRP.build
     schemes:
       - myrpbuild
-# Electron security fuses (checklist #19, fivem-studio-9m4) — native
+# Electron security fuses (checklist #19) — native
 # electron-builder integration, which also injects the ASAR integrity hashes
 # (a manual @electron/fuses flipFuses would break that). Recommended hardened set:
 electronFuses:
@@ -26,7 +34,7 @@ electronFuses:
   enableNodeOptionsEnvironmentVariable: false # block NODE_OPTIONS injection
   enableNodeCliInspectArguments: false # block --inspect of the packaged app
   enableCookieEncryption: true # encrypt the cookie store at rest
-  # ASAR integrity validation is DISABLED on Windows (fivem-studio-zsl): the
+  # ASAR integrity validation is DISABLED on Windows: the
   # Windows ElectronAsar PE-integrity path is fragile (electron/electron#43514)
   # and was rejecting the renderer's index.html from the asar at runtime
   # (Chromium file:// loader → ERR_FILE_NOT_FOUND → black screen), even though
@@ -36,14 +44,14 @@ electronFuses:
   enableEmbeddedAsarIntegrityValidation: false
   onlyLoadAppFromAsar: false
   loadBrowserProcessSpecificV8Snapshot: false
-  # MUST stay true (fivem-studio-zsl): when false, the file:// protocol loses the
+  # MUST stay true: when false, the file:// protocol loses the
   # privileges Electron needs to read files from inside app.asar, so the renderer's
   # index.html fails to load (Chromium file:// → ERR_FILE_NOT_FOUND → black screen),
   # even though main (Node require) loads fine. This — NOT asar integrity — was the
   # black-screen root cause. Confirmed by flipping this fuse on a built binary.
   grantFileProtocolExtraPrivileges: true
 files:
-  # ALLOWLIST (fivem-studio uc3). MUST be a positive allowlist, not bare
+  # ALLOWLIST. MUST be a positive allowlist, not bare
   # exclusions. A previous all-exclusion list expanded to "**/*" and packed the
   # ENTIRE project root — gamma/, scratch/, docs/, .beads/, .claude/, supabase/,
   # and (fatally) the actively-written build logs _build-*.log / build-*.txt /
@@ -60,6 +68,11 @@ files:
   - "!**/.vscode/*"
   - "!**/*.{log,txt}"
   - "!{.env,.env.*,.npmrc}"
+  # GTA map tiles (~318 MB of Rockstar imagery) are NOT bundled — the packaged
+  # app streams them from the cloud Supabase Storage "map-tiles" public bucket
+  # (GtaMap.tsx derives the URL from VITE_SUPABASE_URL in prod). Keeps them out of
+  # the asar; dev runs from source and still uses the local public/ copy.
+  - "!out/renderer/assets/maps/**"
 asarUnpack:
   - "resources/**"
   # ox knowledge skills are read at runtime by the Mastra workspace's
@@ -71,9 +84,19 @@ asarUnpack:
   # dynamically loads sibling DLLs (onnxruntime.dll / DirectML.dll) from its own dir
   # via the OS loader — so the WHOLE bin tree (not just the .node) must be unpacked,
   # or LoadLibrary fails at runtime. electron-builder's smartUnpack only handles the
-  # .node, leaving the DLLs trapped → must unpack bin/** explicitly (fivem-studio-s1f9).
-  # (The bge-small model is NOT bundled — it downloads to ~/.cache/mastra at first use.)
+  # .node, leaving the DLLs trapped → must unpack bin/** explicitly.
   - "node_modules/onnxruntime-node/bin/**"
+# Bundled fastembed bge-small weights. Fetched at build time by the beforePack
+# hook into build/fastembed-models, copied here to <resources>/fastembed-models, and
+# seeded into ~/.cache/mastra/fastembed-models at first launch (bootstrap/fastembed-seed.ts)
+# so packaged / offline / first-run installs never download the model at runtime.
+# lua-language-server is bundled as a whole tree; index.ts points LUALS_PATH at
+# <resources>/lua-language-server/bin so the Workspace LSP + validator --check use it.
+extraResources:
+  - from: build/fastembed-models
+    to: fastembed-models
+  - from: build/lua-language-server
+    to: lua-language-server
 win:
   executableName: myRP.build
   # Azure Trusted Signing (cloud HSM — no hardware token). Account/profile set up

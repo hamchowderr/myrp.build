@@ -5,7 +5,7 @@
  * so they can be inherited by child processes launched with CreateProcessW.
  *
  * Used by the FxDK orchestrator to create produce/consume semaphores
- * that are shared between FiveM Studio and the game client.
+ * that are shared between myRP.build and the game client.
  */
 
 import koffi from "koffi";

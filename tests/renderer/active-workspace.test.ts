@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Workspace } from "../../src/renderer/src/lib/account";
 import { deriveActiveId } from "../../src/renderer/src/lib/active-workspace";
 
-// Teams epic 1gf (fivem-studio-nqy): the workspace switcher's active-selection
+// Teams epic: the workspace switcher's active-selection
 // rule. Persisted pointer wins when still a member; else personal; else first.
 const personal: Workspace = {
   workspaceId: "p1",
@@ -26,7 +26,7 @@ const teamB: Workspace = {
   plan: "free",
 };
 
-describe("deriveActiveId (fivem-studio-nqy)", () => {
+describe("deriveActiveId", () => {
   it("honors the persisted pointer when the user is still a member", () => {
     expect(deriveActiveId([personal, teamA, teamB], "t1")).toBe("t1");
     expect(deriveActiveId([personal, teamA, teamB], "t2")).toBe("t2");

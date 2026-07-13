@@ -14,7 +14,7 @@ interface GenerationManifest {
   resourceDir: string;
   createdAt: string;
   /**
-   * Pre-overwrite snapshot of the resource (fivem-studio-80v). Present only when
+   * Pre-overwrite snapshot of the resource. Present only when
    * this generation overwrote an EXISTING resource; absent for brand-new ones.
    * undoGeneration restores from here so a regeneration is reversible.
    */
@@ -65,7 +65,7 @@ export async function writeGenerationManifest(
 
 /**
  * Synchronously snapshot an existing resource folder before it's overwritten
- * (fivem-studio-80v). SYNC (cpSync) on purpose: it runs inside the streaming
+ * SYNC (cpSync) on purpose: it runs inside the streaming
  * onChunk handler on `tool-input-available` — i.e. BEFORE the agent's write_file
  * executes — and because the stream consumer calls onChunk synchronously, the
  * copy completes before the write lands. That makes the snapshot race-free.
@@ -110,7 +110,7 @@ export async function appendEnsureLine(serverCfgPath: string, resourceName: stri
  * Write (or overwrite) a .claude/CLAUDE.md to the server root.
  * This file is read by the Agent SDK (settingSources: ['project'])
  * on every generation to provide server-specific context.
- * Fully managed by FiveM Studio — overwritten on every context scan.
+ * Fully managed by myRP.build — overwritten on every context scan.
  * DO NOT edit manually.
  */
 export async function writeServerClaudeMd(
@@ -174,7 +174,7 @@ export async function undoGeneration(manifestPath: string): Promise<void> {
     await unlink(manifestPath);
   } catch {}
 
-  // Restore (fivem-studio-80v): if this generation overwrote an existing
+  // Restore: if this generation overwrote an existing
   // resource, put the pre-overwrite snapshot back so undo truly reverses the
   // regeneration (not just deletes the new files). For a brand-new resource
   // (no backup) keep the original behavior — remove the directory.

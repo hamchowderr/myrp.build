@@ -175,7 +175,7 @@ enable_signup = true
 enable_anonymous_sign_ins = false
 # Allow/disallow linking an additional OAuth identity to a signed-in user.
 # REQUIRED for supabase.auth.linkIdentity() — the GitHub backup connect flow
-# (fivem-studio-1yef.2) links a GitHub identity onto the Discord-authed user.
+# links a GitHub identity onto the Discord-authed user.
 # Mirror this in the prod dashboard: Authentication → enable "Manual linking".
 enable_manual_linking = true
 # Passwords shorter than this value will be rejected as weak. Minimum 6, recommended 8 or more.
@@ -345,8 +345,8 @@ secret = "env(SUPABASE_AUTH_EXTERNAL_DISCORD_SECRET)"
 redirect_uri = ""
 
 # GitHub OAuth — NOT a sign-in provider; used only to link a GitHub identity onto
-# the signed-in (Discord) user so server folders can be backed up to a GitHub repo
-# (fivem-studio-1yef.2). The desktop link flow is the same RFC 8252 loopback as
+# the signed-in (Discord) user so server folders can be backed up to a GitHub repo.
+# The desktop link flow is the same RFC 8252 loopback as
 # Discord (linkIdentity + skipBrowserRedirect + exchangeCodeForSession). The repo
 # scope is requested at link time in the client (options.scopes), not here. The
 # default local callback is http://127.0.0.1:55321/auth/v1/callback (add it to the
@@ -469,18 +469,18 @@ entrypoint = "./functions/create-portal/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/create-portal/*.html" ]
 
-[functions.fivem-inference-proxy]
+[functions.inference-proxy]
 enabled = true
 # We verify the Supabase session JWT inside the function, so the platform must
 # not pre-verify the Authorization header.
 verify_jwt = false
-import_map = "./functions/fivem-inference-proxy/deno.json"
+import_map = "./functions/inference-proxy/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
-entrypoint = "./functions/fivem-inference-proxy/index.ts"
+entrypoint = "./functions/inference-proxy/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/fivem-inference-proxy/*.html" ]
+# static_files = [ "./functions/inference-proxy/*.html" ]
 
 [functions.billing-return]
 enabled = true

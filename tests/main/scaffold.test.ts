@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { sanitizeServerFolderName, starterServerCfg } from "../../src/main/scaffold";
 
-// m8se.4 — the pure scaffold helpers (the I/O + ox download path needs a real
+// The pure scaffold helpers (the I/O + ox download path needs a real
 // filesystem/network, exercised manually).
 
 describe("sanitizeServerFolderName", () => {

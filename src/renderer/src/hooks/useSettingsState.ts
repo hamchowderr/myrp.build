@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 function loadProfile(): { displayName: string } {
   try {
-    const stored = localStorage.getItem("fivem-studio-profile");
+    const stored = localStorage.getItem("myrp-build-profile");
     if (stored) {
       const parsed = JSON.parse(stored);
       return { displayName: parsed.displayName || "Developer" };
@@ -14,7 +14,7 @@ function loadProfile(): { displayName: string } {
 }
 
 function saveProfile(profile: { displayName: string }) {
-  localStorage.setItem("fivem-studio-profile", JSON.stringify(profile));
+  localStorage.setItem("myrp-build-profile", JSON.stringify(profile));
 }
 
 export function useSettingsState(settings: AppSettings) {
@@ -29,7 +29,7 @@ export function useSettingsState(settings: AppSettings) {
   // Connection
   const [serverPort, setServerPort] = useState(activeServer?.serverPort?.toString() ?? "30120");
   const [rconPassword, setRconPassword] = useState(activeServer?.rconPassword ?? "");
-  const [requireApproval, setRequireApproval] = useState(settings.requireApproval ?? false);
+  const [requireApproval, setRequireApproval] = useState(settings.requireApproval ?? true);
 
   async function toggleApproval(value: boolean): Promise<void> {
     setRequireApproval(value);
@@ -48,7 +48,7 @@ export function useSettingsState(settings: AppSettings) {
   const [txAdminPassword, setTxAdminPassword] = useState(activeServer?.txAdminPassword ?? "");
   const [txTestState, setTxTestState] = useState<"idle" | "testing" | "ok" | "fail">("idle");
   const [txTestError, setTxTestError] = useState<string | undefined>();
-  // Zero-password webview login (dt2): is a harvested session active, and a
+  // Zero-password webview login: is a harvested session active, and a
   // status line for the login attempt.
   const [txWebviewActive, setTxWebviewActive] = useState(false);
   const [txWebviewState, setTxWebviewState] = useState<"idle" | "opening" | "ok" | "fail">("idle");
@@ -167,7 +167,7 @@ export function useSettingsState(settings: AppSettings) {
     setTimeout(() => setTxTestState("idle"), 4000);
   }
 
-  // Reflect any already-active harvested session on mount (dt2).
+  // Reflect any already-active harvested session on mount.
   useEffect(() => {
     window.api.txadmin
       .hasWebviewSession()
@@ -274,7 +274,7 @@ export function useSettingsState(settings: AppSettings) {
     txTestState,
     txTestError,
     handleTestTxAdmin,
-    // txAdmin zero-password webview login (dt2)
+    // txAdmin zero-password webview login
     txWebviewActive,
     txWebviewState,
     txWebviewError,

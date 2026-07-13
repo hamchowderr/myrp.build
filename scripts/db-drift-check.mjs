@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// db-drift-check (fivem-studio-d6g) — catch "history says applied, body didn't run" drift.
+// db-drift-check — catch "history says applied, body didn't run" drift.
 //
 // WHY a schema diff and not `supabase migration list`: the hosted GitHub integration
 // records a migration *version* as applied even when its body didn't fully execute
@@ -12,12 +12,12 @@
 //
 // Scope: `public` only by default. The auth schema is Supabase-managed (diffing it is
 // noisy) and provisioning is moving out of the auth.users trigger into public RPCs
-// (fivem-studio-017), so public is where the migration bodies that matter actually land.
+// so public is where the migration bodies that matter actually land.
 // Override with: npm run db:drift-check -- --schema public,storage
 //
 // Requirements (local): supabase CLI logged in + linked, Docker running (shadow DB),
 // and the prod DB password — set SUPABASE_DB_PASSWORD to run non-interactively, or let
-// the CLI prompt you. Zero new CI secrets by design (fivem-studio-d6g chose local-first).
+// the CLI prompt you. Zero new CI secrets by design (local-first).
 //
 // Exit codes: 0 = in sync · 1 = drift detected · 2 = could not run the check.
 

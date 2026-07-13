@@ -1,7 +1,7 @@
 import { defineConfig } from "vitest/config";
 
 /**
- * Vitest config for the Mastra migration test tier (epic 55x.19).
+ * Vitest config for the Mastra migration test tier.
  *
  * Node environment — these tests exercise main-process modules (workspace,
  * agent) directly, not the renderer. AIMock provides the deterministic LLM

@@ -1,6 +1,6 @@
 /**
  * Message-domain methods for the cloud adapter, split out of memory.ts to keep
- * each file under the 500-line cap (z8j8.6). SupabaseMemoryStorage extends this
+ * each file under the 500-line cap. SupabaseMemoryStorage extends this
  * (which in turn extends the observational-memory base), so messages, threads,
  * resources, and clone all live on the one MemoryStorage subclass — just across
  * separate files. Reads go through RLS-protected tables; writes (saveMessages /

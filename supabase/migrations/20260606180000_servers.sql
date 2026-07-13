@@ -1,4 +1,4 @@
--- ── Servers (fivem-studio-1lc — M3.1) ────────────────────────────────────────
+-- ── Servers ──────────────────────────────────────────────────────────────────
 -- A workspace (personal or team) can have MULTIPLE FiveM servers. Each desktop
 -- client maps its configured server (settings.serverPath) to a stable
 -- client_server_key (a hash of the path); ensure_server upserts the row and

@@ -1,4 +1,4 @@
--- ── RAG read RPC hardening (M3.3 — fivem-studio-r4w) ─────────────────────────
+-- ── RAG read RPC hardening ───────────────────────────────────────────────────
 -- The desktop client cuts the RAG read path off the direct RAG_DATABASE_URL
 -- pgvector connection (a DB credential that must NEVER ship) onto this RPC,
 -- called via supabase-js with the baked anon key + the per-run user JWT.

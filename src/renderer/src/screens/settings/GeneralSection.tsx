@@ -367,7 +367,7 @@ export function GeneralSection({
         )}
       </div>
 
-      {/* Zero-password Cfx.re login (dt2) */}
+      {/* Zero-password Cfx.re login */}
       <SettingsRow
         label="Sign in with Cfx.re"
         description="Log into txAdmin once in a pop-up window (Cfx.re SSO) — myRP.build reuses that session, so no backup password needs to be stored."

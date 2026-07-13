@@ -1,11 +1,11 @@
 /**
- * System prompt (instructions) for the FiveM Studio Mastra supervisor agent.
+ * System prompt (instructions) for the myRP.build Mastra supervisor agent.
  *
- * Migrated from prompts/layer1-role.ts + agents/orchestrator.ts (epic 55x.3),
+ * Migrated from prompts/layer1-role.ts + agents/orchestrator.ts,
  * with two deliberate changes from the legacy Agent-SDK prompt:
  *
  *  1. ox_overextended ONLY — no other frameworks, oxmysql only. This is the
- *     confirmed product direction (the ox-only decision propagated to 55x.3).
+ *     confirmed product direction (the ox-only decision).
  *  2. Tools are the Mastra Workspace tools (read/write/edit/list/grep/search +
  *     execute_command), auto-wired from the assigned workspace — NOT the old
  *     Read/Write/Glob/Grep custom tools. The prompt refers to capabilities, not
@@ -13,7 +13,7 @@
  *
  * Sub-agent delegation (context-scout, lua/nui/lore specialists, validator,
  * security-auditor, docs-writer) is described generically — those register via
- * the agent's `agents` map in 55x.24. Until then the supervisor does the work
+ * the agent's `agents` map later. Until then the supervisor does the work
  * directly with its workspace tools, so this prompt is valid standalone.
  */
 export const FIVEM_INSTRUCTIONS = `<role>

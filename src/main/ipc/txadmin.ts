@@ -1,6 +1,6 @@
 /**
- * IPC handlers for txAdmin REST control — server restart button (fivem-studio-zdy)
- * and resource-manager live controls (fivem-studio-myn).
+ * IPC handlers for txAdmin REST control — server restart button
+ * and resource-manager live controls.
  *
  * Reads connection config (url/username/password) from AppSettings on each call
  * so the latest Settings are always used. The client caches the txAdmin session
@@ -61,7 +61,7 @@ export function registerTxAdminHandlers(): void {
     return txAdminControl(cfg, action);
   });
 
-  // Is txAdmin actually listening at the configured URL? (fivem-studio-92fh) A
+  // Is txAdmin actually listening at the configured URL? A
   // direct-launched FXServer has no txAdmin, so the txAdmin-only controls (the
   // whole-server Restart) must hide rather than dead-end on ERR_CONNECTION_REFUSED.
   // Any HTTP response — even a redirect/401 — means it's up; only a refused/timed-
@@ -93,7 +93,7 @@ export function registerTxAdminHandlers(): void {
     return txAdminTestConnection(cfg);
   });
 
-  // Zero-password login (dt2): open the txAdmin web panel in a window, let the
+  // Zero-password login: open the txAdmin web panel in a window, let the
   // user authenticate (Cfx.re SSO), then harvest the session into the client.
   ipcMain.handle("txadmin:webviewLogin", async () => {
     const baseUrl = await loadBaseUrl();

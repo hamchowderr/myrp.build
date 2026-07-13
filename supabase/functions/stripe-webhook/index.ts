@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
         const item = sub.items.data[0];
         const toIso = (s?: number) => (s ? new Date(s * 1000).toISOString() : undefined);
         // current_period_* live on the Subscription in the 2025-02-24.acacia API
-        // shape (stripe@17.7.0), not on the SubscriptionItem (fivem-studio-6az).
+        // shape (stripe@17.7.0), not on the SubscriptionItem.
         const { error } = await supabase.rpc("update_subscription", {
           p_customer_id: customerId,
           p_subscription_id: sub.id,

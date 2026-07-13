@@ -4,7 +4,7 @@ import { Input } from "@renderer/components/ui/input";
 import { Separator } from "@renderer/components/ui/separator";
 import type { SettingsState } from "@renderer/hooks/useSettingsState";
 import { useAccount } from "@renderer/lib/account";
-import { CheckCircle2, User } from "lucide-react";
+import { CheckCircle2, LogOut, User } from "lucide-react";
 import { SectionHeader, SettingsRow } from "./shared";
 
 interface ProfileSectionProps {
@@ -23,8 +23,8 @@ export function ProfileSection({
   onSave,
 }: ProfileSectionProps) {
   // Signed-in Discord identity (prod) — surfaces the user's avatar/name in the
-  // profile preview; undefined in dev-bypass, where we fall back to initials (c4c).
-  const { avatarUrl, displayName: accountName } = useAccount();
+  // profile preview; undefined in dev-bypass, where we fall back to initials.
+  const { avatarUrl, displayName: accountName, signOut, isDev } = useAccount();
   return (
     <div className="space-y-0">
       <SectionHeader title="Profile" />
@@ -83,6 +83,25 @@ export function ProfileSection({
           </Button>
         </div>
       </SettingsRow>
+
+      {/* Sign out — relocated here from the chat footer (the Discord avatar/menu
+          was removed). Prod only; dev-bypass has no session to end. */}
+      {!isDev ? (
+        <>
+          <Separator />
+          <SettingsRow label="Account" description="Sign out of your myRP.build account.">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 gap-1.5 text-xs"
+              onClick={() => void signOut()}
+            >
+              <LogOut className="size-3" />
+              Sign out
+            </Button>
+          </SettingsRow>
+        </>
+      ) : null}
     </div>
   );
 }

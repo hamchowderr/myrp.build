@@ -35,7 +35,7 @@ export function registerSettingsHandlers(): void {
     return settings.servers.length > 0 ? settings : null;
   });
 
-  // Scaffold a fresh ox server folder (m8se.4). Returns the new paths + which ox
+  // Scaffold a fresh ox server folder. Returns the new paths + which ox
   // base resources downloaded, or an error string the renderer can surface.
   ipcMain.handle(
     "servers:scaffold",

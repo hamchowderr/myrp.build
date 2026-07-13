@@ -1,5 +1,5 @@
 /**
- * Account/subscription context (fivem-studio-lwt).
+ * Account/subscription context.
  *
  * Decouples the app's consumers (Generator, StatusBar, ChatInput, SubscriptionSection)
  * from Supabase. Consumers read this context via `useAccount()` and NEVER import
@@ -18,7 +18,7 @@ import { createContext, type ReactNode, useContext } from "react";
 export type PaidTier = "starter" | "pro" | "studio";
 export type Plan = "free" | PaidTier;
 
-/** Workspace roles (teams epic 1gf). 'admin' is defunct/never assigned. */
+/** Workspace roles (teams epic). 'admin' is defunct/never assigned. */
 export type WorkspaceRole = "owner" | "developer" | "admin";
 
 /** One workspace the signed-in user belongs to (from list_my_workspaces). */
@@ -37,11 +37,11 @@ export interface AccountValue {
   canGenerate: boolean;
   /**
    * The ACTIVE workspace id — the single source of truth that downstream
-   * consumers (chat generation, billing) read (teams epic 1gf, nqy). Tracks
+   * consumers (chat generation, billing) read (teams epic). Tracks
    * app_users.active_workspace_id; falls back to the personal workspace.
    */
   workspaceId?: string;
-  /** Every workspace the user belongs to, for the switcher (nqy). Empty in dev. */
+  /** Every workspace the user belongs to, for the switcher. Empty in dev. */
   workspaces: Workspace[];
   /** True while the workspace list is first loading. */
   workspacesLoading: boolean;
@@ -51,9 +51,9 @@ export interface AccountValue {
   switchWorkspace: (workspaceId: string) => Promise<void>;
   /** Re-pull the workspace list (after create/accept/leave). No-op in dev. */
   refreshWorkspaces: () => Promise<void>;
-  /** Discord OAuth avatar URL for the signed-in user (prod). undefined in dev-bypass (c4c). */
+  /** Discord OAuth avatar URL for the signed-in user (prod). undefined in dev-bypass. */
   avatarUrl?: string;
-  /** Discord display name for the signed-in user (prod). undefined in dev-bypass (c4c). */
+  /** Discord display name for the signed-in user (prod). undefined in dev-bypass. */
   displayName?: string;
   isLoading: boolean;
   /** True in the dev-bypass build — billing/auth are disabled. */
@@ -68,6 +68,8 @@ export interface AccountValue {
   accountSlot: ReactNode;
   /** Supabase access token for the prod inference proxy; null in dev-bypass. */
   getToken: () => Promise<string | null>;
+  /** Sign out of the prod session (Settings → Profile). No-op in dev-bypass. */
+  signOut: () => Promise<void>;
 }
 
 /** Dev-bypass value: unlimited, no billing, treated as "pro" so no upgrade nag. */
@@ -87,6 +89,7 @@ const DEV_ACCOUNT: AccountValue = {
   billingError: null,
   accountSlot: null,
   getToken: async () => null,
+  signOut: async () => {},
 };
 
 export const AccountContext = createContext<AccountValue>(DEV_ACCOUNT);

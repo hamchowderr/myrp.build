@@ -1,6 +1,6 @@
--- ── Teams (fivem-studio-v05) — schema ────────────────────────────────────────
--- First forward migration on top of the clean baseline (fivem-studio-bd2).
--- Foundation for the teams epic (fivem-studio-1gf): multi-member workspaces with
+-- ── Teams — schema ───────────────────────────────────────────────────────────
+-- First forward migration on top of the clean baseline.
+-- Foundation for the teams epic: multi-member workspaces with
 -- two roles — Owner + Developer — and in-app pending invitations matched by email
 -- (no email infra). 'admin' is left defunct (never assigned). Forward-only.
 

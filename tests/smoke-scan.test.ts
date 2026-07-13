@@ -1,5 +1,5 @@
 /**
- * Unit tests for the deploy smoke-test console scanner (fivem-studio-m7f).
+ * Unit tests for the deploy smoke-test console scanner.
  * Pure logic — no server, no RCON, no credits.
  */
 import { describe, expect, it } from "vitest";

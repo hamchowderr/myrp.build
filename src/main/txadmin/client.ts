@@ -9,7 +9,7 @@
  * Drives the SAME txAdmin REST API for both local dev (http://127.0.0.1:40120)
  * and the cloud Docker demos (http://<vps>:4012x) — only the base URL changes.
  * Verified against txAdmin v8.0.1 and the vault map
- * "FiveM Studio — txAdmin & FXServer Reference".
+ * "myRP.build — txAdmin & FXServer Reference".
  *
  * Auth: POST /auth/password {username, password} → session cookie(s) + csrfToken.
  * All writes require `Cookie` + `x-txadmin-csrftoken` headers.
@@ -22,8 +22,8 @@ export interface TxAdminConfig {
   username?: string;
   /**
    * Numeric backup password set during txAdmin registration. Optional: when a
-   * webview-harvested session exists for this baseUrl (zero-password login,
-   * fivem-studio-dt2), password login is never attempted. Kept as the fallback.
+   * webview-harvested session exists for this baseUrl (zero-password login),
+   * password login is never attempted. Kept as the fallback.
    */
   password?: string;
 }
@@ -54,7 +54,7 @@ interface TxAdminResponse {
 const sessionCache = new Map<string, Session>();
 
 /**
- * Per-baseUrl harvested-session store (fivem-studio-dt2). Populated by the
+ * Per-baseUrl harvested-session store. Populated by the
  * webview login flow (src/main/txadmin/webview-auth.ts) after the user logs
  * into txAdmin via Cfx.re SSO. When present and valid it is preferred over a
  * password login, so no backup password need ever be stored. A harvested

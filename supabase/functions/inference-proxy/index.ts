@@ -1,4 +1,4 @@
-// fivem-inference-proxy — the thin PROD inference hop (fivem-studio-jqa / ok7).
+// inference-proxy — the thin PROD inference hop.
 //
 // Flow: desktop client (Mastra, prod build) sends an Anthropic Messages API
 // request here with the user's Supabase session token as the key. We forward to the
@@ -12,7 +12,7 @@
 //
 // The gateway gives multi-provider routing + spend metering + fallbacks; this
 // function only adds auth + per-user quota. Dev/owner builds bypass all of this
-// (fivem-studio-lwt) and call Anthropic directly.
+// and call Anthropic directly.
 //
 // Secrets (supabase secrets set ...): AI_GATEWAY_API_KEY.
 // Auto-injected by the edge runtime: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
@@ -35,7 +35,7 @@ const EMBED_URL =
   Deno.env.get("AI_GATEWAY_EMBED_URL") ?? "https://ai-gateway.vercel.sh/v3/ai/embedding-model";
 // Accept either name: the hosted secret may be set as AI_GATEWAY_API_KEY or, to
 // match the Infisical convention, VERCEL_GATEWAY_KEY (the client uses the same
-// fallback). Reconciles the gateway key-name mismatch (fivem-studio-irx gap #1).
+// fallback). Reconciles the gateway key-name mismatch.
 const GATEWAY_KEY = Deno.env.get("AI_GATEWAY_API_KEY") ?? Deno.env.get("VERCEL_GATEWAY_KEY") ?? "";
 const SUPABASE_URL = requireEnv("SUPABASE_URL");
 const SERVICE_KEY = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
 
   // Classify: embeddings (semantic recall) hit /embedding-model; the OM observer
   // marks its language-model calls with x-myrp-memory-op. Both are FREE internal
-  // memory infra — authenticated, but never quota-gated or metered (z8j8.5).
+  // memory infra — authenticated, but never quota-gated or metered.
   const isEmbedding = new URL(req.url).pathname.endsWith("/embedding-model");
   const isMemoryOp = isEmbedding || req.headers.get("x-myrp-memory-op") === "1";
 
@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
   try {
     const rows = await rpc<WorkspacePlan[]>("get_user_workspace_plan", { p_user_id: userId });
     const info = rows?.[0];
-    if (!info) return json({ error: "user not found — sign in to FiveM Studio first" }, 403);
+    if (!info) return json({ error: "user not found — sign in to myRP.build first" }, 403);
     if (!isMemoryOp && !info.can_generate) {
       return json(
         {

@@ -5,17 +5,17 @@ import { beforeAll } from "vitest";
 /**
  * Wire AIMock for a Mastra agent test file. Call once at the top level of a
  * test file. Starts a deterministic mock LLM server, loads fixtures from
- * tests/fixtures/llmock, and points Mastra's anthropic provider at it.
+ * tests/fixtures/llmock, and points the agent's OpenAI-compatible provider at it.
  *
- * Gotchas baked in (see vault: 2. Areas/development/testing/aimock.md):
- *  - `useAimock`'s patchEnv only sets OPENAI_BASE_URL, so we set
- *    ANTHROPIC_BASE_URL ourselves (with the required `/v1` suffix) once the
- *    server URL is known — in a beforeAll registered AFTER useAimock's own.
- *  - `.env` ships ANTHROPIC_API_KEY='' (empty string). Use `||`, not `??`, so
- *    Mastra doesn't see '' and throw "Could not find API key".
- *  - The model MUST be anthropic/* — google/ hardcodes its base URL and
- *    openai/ hits the Responses API; neither is interceptable by AIMock.
- *    Haiku is the canonical AIMock model.
+ * AIMock is OpenAI-compatible first (see vault: AIMock note), so the agent's
+ * model resolution uses its OPENAI_BASE_URL branch — createOpenAI().chat() hits
+ * /v1/chat/completions, AIMock's native protocol. Notes:
+ *  - `useAimock`'s patchEnv sets OPENAI_BASE_URL itself, but we set it here too
+ *    (with the required `/v1` suffix) once the server URL is known, in a
+ *    beforeAll registered AFTER useAimock's own — explicit + deterministic.
+ *  - Use `||`, not `??`, so an empty-string env var doesn't slip through as a key.
+ *  - The model id is arbitrary — fixtures match on userMessage/tools, not model;
+ *    gpt-4o is the canonical AIMock model.
  *
  * Returns the aimock handle getter so tests can journal/assert on requests.
  */
@@ -27,9 +27,12 @@ export function setupAimock() {
 
   beforeAll(() => {
     const { url } = getAimock();
-    process.env.ANTHROPIC_BASE_URL = `${url}/v1`;
-    process.env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "mock";
-    process.env.MASTRA_MODEL = process.env.MASTRA_MODEL || "anthropic/claude-haiku-4-5";
+    // AIMock is OpenAI-compatible first — point the agent's OpenAI provider at it
+    // via OPENAI_BASE_URL (its createOpenAI().chat() branch → /v1/chat/completions).
+    // The gateway / bare-provider paths are not exercised in tests.
+    process.env.OPENAI_BASE_URL = `${url}/v1`;
+    process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "mock";
+    process.env.MASTRA_MODEL = process.env.MASTRA_MODEL || "gpt-4o";
   });
 
   return getAimock;

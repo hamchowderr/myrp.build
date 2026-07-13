@@ -1,5 +1,5 @@
 /**
- * Conversational approval intent classifier (fivem-studio-xqc.1).
+ * Conversational approval intent classifier.
  *
  * When a gated tool (execute_command / delete / deploy_resource) pauses for
  * approval, the user can either click Approve/Decline or simply type a reply.

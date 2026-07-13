@@ -1,6 +1,6 @@
 /**
  * Custom AI SDK v6 ChatTransport that bridges useChat to the Electron main
- * process over IPC (fivem-studio-k8v). Non-HTTP transports are a first-class
+ * process over IPC. Non-HTTP transports are a first-class
  * AI SDK extension point — see ChatTransport docs.
  *
  * sendMessages() returns a ReadableStream<UIMessageChunk> whose chunks are
@@ -29,7 +29,7 @@ export class IpcChatTransport implements ChatTransport<UIMessage> {
     const { messages, chatId, abortSignal } = options;
     const text = messageText(messages.at(-1));
     // Model + access token + active workspace ride in the per-call body (useAEChat
-    // passes them). workspaceId scopes cloud chat memory to the active tenant (M2.4).
+    // passes them). workspaceId scopes cloud chat memory to the active tenant.
     const body = options.body as
       | { model?: string; accessToken?: string; workspaceId?: string }
       | undefined;

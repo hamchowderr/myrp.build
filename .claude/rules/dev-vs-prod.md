@@ -6,12 +6,12 @@ myRP.build runs in two **completely separate** modes, decided at BUILD time by t
 
 | Run it with… | Mode | Sign-in + billing | Inference | Data backend | Source edits show up? |
 |---|---|---|---|---|---|
-| `npm run dev` **+ `FIVEM_STUDIO_DEV=1`** | **Dev-bypass** (owner) | none | direct `ANTHROPIC_API_KEY` | **local** Supabase (`127.0.0.1:55321`) | renderer: HMR · main/preload: **restart `dev`** |
+| `npm run dev` **+ `FIVEM_STUDIO_DEV=1`** | **Dev-bypass** (owner) | none | Vercel AI Gateway (`VERCEL_GATEWAY_KEY`) | **local** Supabase (`127.0.0.1:55321`) | renderer: HMR · main/preload: **restart `dev`** |
 | `npm run dev` (no flag) / `npm run dev:prod` | **Prod path, from source** | Discord OAuth + Stripe | proxy → AI Gateway | local (`dev`) / hosted (`dev:prod`) | renderer: HMR · main/preload: restart |
 | packaged `.exe` — `build:win` / `build:unpack:nosign` / installed | **Prod — what users get** | Discord OAuth + Stripe | proxy → AI Gateway | **cloud** Supabase (`tpqoaxmjkgmtqvntrlzp`) | **NO — frozen; REBUILD required** |
 
 ## The two modes
-- **Dev (owner)** — `npm run dev` with `FIVEM_STUDIO_DEV=1` in `.env`. `App.tsx` renders `AppContent` + `DevAccountProvider`: no sign-in, no billing, generation uses the direct `ANTHROPIC_API_KEY`. Supabase/auth are never imported.
+- **Dev (owner)** — `npm run dev` with `FIVEM_STUDIO_DEV=1` in `.env`. `App.tsx` renders `AppContent` + `DevAccountProvider`: no sign-in, no billing, generation uses the **Vercel AI Gateway** (`VERCEL_GATEWAY_KEY`, free monthly credits) — the bare `ANTHROPIC_API_KEY` fallback was removed. Supabase/auth are never imported.
 - **Prod (users)** — packaged build. `App.tsx` lazy-loads `AuthApp`: Discord sign-in (native Supabase OAuth, PKCE) + Stripe billing + the inference proxy.
 
 ## Local vs cloud data (Supabase)

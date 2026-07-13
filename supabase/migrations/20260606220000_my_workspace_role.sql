@@ -1,4 +1,4 @@
--- ── Caller's role in a workspace (M3.2 — fivem-studio-lbe) ───────────────────
+-- ── Caller's role in a workspace ─────────────────────────────────────────────
 -- Shared team threads tag every USER message in MAIN with a
 -- <turn author_id author_name functional_role> built from the AUTHENTICATED
 -- identity (auth.uid()/auth.email()) + the member's workspace_members.role. This

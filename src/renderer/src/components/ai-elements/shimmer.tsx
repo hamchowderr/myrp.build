@@ -14,7 +14,7 @@ export interface TextShimmerProps {
  * Animated text shimmer (e.g. the "Thinking…" label). Pure CSS — the `.text-shimmer`
  * class in index.css animates a highlight gradient across the text via
  * background-position. Replaces the previous motion/framer-motion implementation,
- * which pulled ~370KB into the startup bundle for this one effect (bss).
+ * which pulled ~370KB into the startup bundle for this one effect.
  *
  * API is unchanged: `spread` scales the highlight width with text length, and
  * `duration` sets the loop time — both passed through as CSS custom properties.

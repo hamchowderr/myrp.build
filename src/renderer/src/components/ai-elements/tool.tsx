@@ -23,7 +23,7 @@ import { CodeBlock, CodeBlockCopyButton } from "./code-block";
 
 /**
  * A JSON CodeBlock with a hover-reveal copy button — every tool input/output dump
- * is copyable (7ap1). The reveal is scoped to a NAMED group (`group/cb`) because the
+ * is copyable. The reveal is scoped to a NAMED group (`group/cb`) because the
  * surrounding Tool card already uses an unnamed `group`; an unscoped `group-hover`
  * would make the button appear when hovering anywhere in the card.
  */

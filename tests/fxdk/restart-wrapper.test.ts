@@ -1,5 +1,5 @@
 /**
- * Unit coverage for the FXServer restart-loop wrapper (fivem-studio-e4c).
+ * Unit coverage for the FXServer restart-loop wrapper.
  *
  * Pure/deterministic — writes a temp .bat and asserts the loop contract. The
  * BEHAVIOURAL guarantee (survive a real txAdmin full-restart, Stop tears down

@@ -1,9 +1,9 @@
 /**
- * install_resource tool (fivem-studio install capability) — lets the agent
+ * install_resource tool (myRP.build install capability) — lets the agent
  * INSTALL a missing ox-ecosystem dependency: download its release zip, extract
  * into resources/[ox]/, and ensure it on the running server.
  *
- * Pairs with deploy_resource's loadError (445.2 / 9hr): when a build fails with
+ * Pairs with deploy_resource's loadError: when a build fails with
  * "could not find dependency X", the agent can install X and redeploy instead of
  * just removing the dependency.
  *

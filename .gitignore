@@ -15,6 +15,12 @@ out
 # Build artifacts
 build-err.txt
 build-out.txt
+# Prefetched fastembed bge-small weights — downloaded at build time by
+# build/prefetch-fastembed-model.cjs, bundled via extraResources. ~130 MB, not committed.
+build/fastembed-models/
+# Prefetched lua-language-server — downloaded at build time by
+# build/prefetch-lua-language-server.cjs, bundled via extraResources. Not committed.
+build/lua-language-server/
 
 # Unrelated projects
 gamma/
@@ -47,12 +53,18 @@ scratch/
 .mastra/
 
 # Beads — never commit the AES-256 credential key or per-machine export state
-# (bd doctor flags these as tracked sensitive files; see fivem-studio-shmj).
-# Issue data (.beads/issues.jsonl) stays tracked intentionally.
+# (bd doctor flags these as tracked sensitive files).
 .beads-credential-key
 .beads/.beads-credential-key
 .beads/export-state.json
 .beads/interactions.jsonl
+# Public repo: keep the beads issue export OUT until the tracker is curated to the
+# public-exclusion policy (no security/credentials/billing/roadmap).
+.beads/issues.jsonl
+
+# Local Claude Code IDE config (personal hooks + local paths) — not part of the
+# public surface.
+.claude/settings.json
 
 # --- public repo additions (pre-publish) ---
 # GTA map tiles are not bundled (Rockstar imagery). Drop your own here, or set
@@ -61,3 +73,16 @@ src/renderer/public/assets/maps/*
 !src/renderer/public/assets/maps/README.md
 # Eval harness lives in a separate private repo.
 tests/eval/
+
+# --- FiveM server secrets must NEVER land in THIS repo ---
+# The legacy private repo (myrp-build) was contaminated when a server.cfg
+# carrying sv_licenseKey / rcon_password / mysql_connection_string /
+# steam_webApiKey was committed into git history — the reason myrp.build is a
+# fresh clean-history repo. This app operates on an EXTERNAL server folder, so
+# a server.cfg / secrets cfg has no place here; block it defensively.
+# (Unrelated to server-backup.ts, which manages a SEPARATE .gitignore inside
+# the USER's server repo, where server.cfg IS versioned with secrets
+# externalized to the ignored myrp-secrets.cfg.)
+server.cfg
+myrp-secrets.cfg
+*secrets*.cfg

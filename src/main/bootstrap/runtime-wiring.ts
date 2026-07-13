@@ -3,7 +3,7 @@
  *
  * Behavior-preserving extraction from src/main/index.ts. wireRuntimeEvents()
  * registers the exact same orchestrator/fxdkSession listeners as before,
- * including the refcounted powerSaveBlocker holders (fivem-studio-1gi) which are
+ * including the refcounted powerSaveBlocker holders which are
  * only ever touched here.
  */
 
@@ -11,7 +11,7 @@ import type { ConsoleEntry } from "../fxdk/session";
 import { keepAwake, notify } from "../native-features";
 import { fxdkSession, gameViewManager, orchestrator, state } from "../shared-state";
 
-// Refcounted powerSaveBlocker holders (fivem-studio-1gi): keep the system awake
+// Refcounted powerSaveBlocker holders: keep the system awake
 // while the FXServer runs and while the embedded game-view is active.
 let serverAwakeRelease: (() => void) | null = null;
 let gameAwakeRelease: (() => void) | null = null;
@@ -65,8 +65,7 @@ export function wireRuntimeEvents(): void {
     if (state.mainWindow && !state.mainWindow.isDestroyed()) {
       state.mainWindow.webContents.send("stream:serverState", s);
     }
-    // Keep the system awake while the server runs; toast on start/stop
-    // (fivem-studio-1gi / -wty).
+    // Keep the system awake while the server runs; toast on start/stop.
     if (s === "running" && !serverAwakeRelease) {
       serverAwakeRelease = keepAwake("fxserver");
       notify("myRP.build", "FXServer is running");

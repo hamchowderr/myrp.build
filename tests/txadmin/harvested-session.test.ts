@@ -1,5 +1,5 @@
 /**
- * Unit coverage for the txAdmin harvested-session cache (fivem-studio-dt2).
+ * Unit coverage for the txAdmin harvested-session cache.
  *
  * Deterministic — exercises only the in-memory cache contract (set / has /
  * clear). The end-to-end behaviour (real Cfx.re login in the webview, cookie

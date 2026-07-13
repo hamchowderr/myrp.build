@@ -1,5 +1,5 @@
 /**
- * 55x.3 construct smoke: prove the FiveM supervisor agent builds on a Workspace
+ * Construct smoke: prove the FiveM supervisor agent builds on a Workspace
  * and exposes it, WITHOUT calling stream()/generate() — no model resolution, no
  * Anthropic tokens spent. Validates the structure only.
  *
@@ -30,7 +30,7 @@ async function main() {
   console.log(
     "[smoke] listAgents() ok, count:",
     Object.keys(subAgents ?? {}).length,
-    "(expected 0 until 55x.24)",
+    "(expected 0 for now)",
   );
 
   await ws.destroy();

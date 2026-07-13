@@ -1,5 +1,5 @@
 /**
- * AI-Elements chat view (fivem-studio-k8v) — the Cursor-style streaming UI.
+ * AI-Elements chat view — the Cursor-style streaming UI.
  *
  * Presentational: chat state comes from useAEChat (lifted in Generator).
  * Renders AI SDK v6 UIMessage parts via AI Elements — text -> MessageResponse,
@@ -54,13 +54,13 @@ const SUGGESTIONS = [
 interface AEChatProps {
   messages: UIMessage[];
   isGenerating: boolean;
-  /** A gated tool is paused awaiting approval (xqc.1) — typed replies approve/decline it. */
+  /** A gated tool is paused awaiting approval — typed replies approve/decline it. */
   awaitingApproval: boolean;
   /** Upstream error (out-of-credits / bad key / rate-limit) to show instead of failing silently. */
   error: string | null;
-  /** Model-generated follow-up suggestions for the just-finished turn (zjni). */
+  /** Model-generated follow-up suggestions for the just-finished turn. */
   followups: string[];
-  /** Logged generation id for the just-finished turn — enables thumbs feedback (zhk.9). */
+  /** Logged generation id for the just-finished turn — enables thumbs feedback. */
   lastGenerationId: string | null;
   context: ServerContext;
   promptHistory: PromptHistoryEntry[];
@@ -102,7 +102,7 @@ function ThinkingDots() {
  * Standalone Bot icon + dots, shown ONLY before the assistant message exists
  * (i.e. right after the user's turn). Once the assistant message row exists, the
  * dots render inline inside that row instead (see MessageContent below) so there
- * is never a second Bot avatar floating beside the message's own avatar (wzi).
+ * is never a second Bot avatar floating beside the message's own avatar.
  */
 function ThinkingIndicator() {
   return (
@@ -118,7 +118,7 @@ function ThinkingIndicator() {
 function ToolRow({ tool }: { tool: ToolUIPart }) {
   const out = tool.output;
   const awaitingApproval = tool.state === "approval-requested";
-  // STABLE card (fivem-studio-475e): the header's status badge updates in place
+  // STABLE card: the header's status badge updates in place
   // (Pending → Running → Completed) with no height change, so a multi-step turn
   // no longer flickers from cards auto-expanding while running and snapping shut
   // on finish. The card stays collapsed; the user expands it to inspect the
@@ -212,7 +212,7 @@ function CheckpointRow({ canUndo, onUndo }: { canUndo: boolean; onUndo: () => Pr
  * this is a custom piece (per the owner's call) — the assistant's Bot icon
  * matches ThinkingIndicator so it persists instead of vanishing when the real
  * message streams in. The user's own messages use their Discord photo when
- * signed in (c4c), falling back to the generic User icon (dev-bypass / no photo).
+ * signed in, falling back to the generic User icon (dev-bypass / no photo).
  */
 function ChatAvatar({ role }: { role: UIMessage["role"] }) {
   const isUser = role === "user";
@@ -306,7 +306,7 @@ export function AEChat({
   // (no messages yet, or the last message is still the user's). Once an empty
   // assistant message exists, its row owns the avatar and the dots render inline
   // inside it — showing the standalone indicator too would render a SECOND Bot
-  // avatar next to the message's own (the wzi double-icon during the RAG/skill
+  // avatar next to the message's own (the double-icon during the RAG/skill
   // init gap, most visible on the first turn).
   const lastMessage = messages[messages.length - 1];
   const showThinking =
@@ -362,7 +362,7 @@ export function AEChat({
                           <MessageParts message={message} />
                           {/* Inline thinking dots: the assistant row exists but
                               nothing has streamed yet. Keeps one avatar (the row's)
-                              instead of also showing the standalone indicator (wzi). */}
+                              instead of also showing the standalone indicator. */}
                           {isLastAssistant &&
                             isGenerating &&
                             !awaitingApproval &&
@@ -371,16 +371,16 @@ export function AEChat({
                       </Message>
                     </div>
                   </div>
-                  {/* Feedback on the just-finished generation (zhk.9). */}
+                  {/* Feedback on the just-finished generation. */}
                   {isLastAssistant && !isGenerating && lastGenerationId && (
                     <FeedbackActions generationId={lastGenerationId} />
                   )}
-                  {/* Restore point for the generation just written — revert its files (c72). */}
+                  {/* Restore point for the generation just written — revert its files. */}
                   {isLastAssistant && !isGenerating && (
                     <CheckpointRow canUndo={canUndo} onUndo={onUndo} />
                   )}
                   {/* Follow-up suggestions: AI Elements Suggestion chips the model
-                      generated from what was just built (zjni), under the last
+                      generated from what was just built, under the last
                       reply. Wrapped (not horizontal-scroll) so all options stay
                       visible within the chat column instead of running off-side. */}
                   {isLastAssistant &&

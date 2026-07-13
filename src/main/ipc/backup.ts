@@ -1,7 +1,6 @@
 /**
- * IPC for server backup to GitHub (fivem-studio-1yef). git-init + .gitignore is
- * the foundation (1yef.1); connect-remote + repo link is 1yef.2; commit/push is
- * 1yef.3.
+ * IPC for server backup to GitHub. git-init + .gitignore is
+ * the foundation; connect-remote + repo link and commit/push build on it.
  *
  * GitHub auth is the SAME Supabase OAuth used for sign-in: the renderer links a
  * GitHub identity (supabase.auth.linkIdentity, `repo` scope) and hands main the
@@ -43,7 +42,7 @@ function clientServerKey(serverPath: string): string {
   return createHash("sha256").update(serverPath).digest("hex").slice(0, 32);
 }
 
-// ── Auto-backup (fivem-studio-dbjw) ──────────────────────────────────────────
+// ── Auto-backup ──────────────────────────────────────────
 // Opt-in: when settings.autoBackup is on, a successful generation schedules a
 // debounced commit+push of the active server. Debounce coalesces bursty
 // generations into one push; commitAndPushServer is idempotent (clean tree =>
@@ -136,7 +135,7 @@ export function registerBackupHandlers(): void {
     return { ok: true };
   });
 
-  // Auto-backup toggle (dbjw) — persisted in the dedicated store, not settings.json.
+  // Auto-backup toggle — persisted in the dedicated store, not settings.json.
   ipcMain.handle("backup:getAutoBackup", async () => ({
     enabled: getStoredSecret(AUTO_KEY) === "1",
   }));
@@ -224,7 +223,7 @@ export function registerBackupHandlers(): void {
     return { linked: !!remoteUrl, remoteUrl: remoteUrl ?? undefined };
   });
 
-  // Back up now (1yef.3): commit the server folder + push to its GitHub repo. The
+  // Back up now: commit the server folder + push to its GitHub repo. The
   // token is read from safeStorage and injected only at push time.
   ipcMain.handle(
     "backup:commitPush",
@@ -279,7 +278,7 @@ export function registerBackupHandlers(): void {
     },
   );
 
-  // Restore (clone) a server repo into parentDir/<repoName> (1yef.4). Token from
+  // Restore (clone) a server repo into parentDir/<repoName>. Token from
   // safeStorage authenticates the clone, then origin is reset to the clean url.
   ipcMain.handle(
     "backup:restore",

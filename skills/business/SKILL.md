@@ -353,7 +353,7 @@ fx_version 'cerulean'
 game 'gta5'
 lua54 'yes'
 
-author 'FiveM Studio'
+author 'myRP.build'
 description 'Player-owned business — ledger, employees, stock'
 version '1.0.0'
 

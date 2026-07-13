@@ -1,4 +1,4 @@
--- ── Mastra memory parity: deleteMessages + resource working memory (z8j8.1/.2) ─
+-- ── Mastra memory parity: deleteMessages + resource working memory ─
 -- Brings the custom SupabaseMemoryStorage adapter to @mastra/pg MemoryPG parity:
 --   • message-level delete   (Memory.deleteMessages → storage.deleteMessages)
 --   • resource working memory (getResourceById / saveResource / updateResource)

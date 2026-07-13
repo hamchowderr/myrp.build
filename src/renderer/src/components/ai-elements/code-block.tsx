@@ -23,6 +23,14 @@ import {
 } from "react";
 import type { BundledLanguage, BundledTheme, HighlighterGeneric, ThemedToken } from "shiki";
 import { createHighlighter } from "shiki";
+import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
+
+// CSP-safe highlighting: prod ships script-src 'self' 'unsafe-inline' (no
+// 'unsafe-eval'), so Shiki's default oniguruma engine — which calls
+// WebAssembly.instantiate() — is blocked and throws ~30x per generation. The pure-JS
+// RegExp engine needs no WASM/eval. `forgiving` skips the rare oniguruma-only regex a
+// grammar may carry instead of throwing. One engine instance, shared across languages.
+const jsRegexEngine = createJavaScriptRegexEngine({ forgiving: true });
 
 // Shiki uses bitflags for font styles: 1=italic, 2=bold, 4=underline
 // oxlint-disable-next-line eslint(no-bitwise)
@@ -151,6 +159,7 @@ const getHighlighter = (
   const highlighterPromise = createHighlighter({
     langs: [language],
     themes: ["github-light", "github-dark"],
+    engine: jsRegexEngine,
   });
 
   highlighterCache.set(language, highlighterPromise);

@@ -35,7 +35,7 @@ Then just keep talking:
 
 Every turn lands new files on disk. **Undo** reverses the last write; **auto-backup** snapshots the previous version before each regenerate — so experimenting costs you nothing.
 
-Under the hood it isn't autocomplete. It's a single **[Mastra](https://mastra.ai/)** agent with a shared workspace, running locally in an isolated Electron utility process (the UI never blocks), that loads ground-truth [ox_overextended](https://overextended.dev/) knowledge on demand from a Skills system plus a RAG index of the ox source — so it builds against the APIs that **actually exist**, not a hallucinated guess.
+Under the hood it isn't autocomplete. It runs on Mastra's **[Agent Harness](https://mastra.ai/)** — a supervisor that spawns focused, tool-isolated specialist sub-agents (context-scout, Lua, NUI, lore, validator, security, docs) over a shared workspace, locally in an isolated Electron utility process (the UI never blocks). Each step loads only the ground-truth [ox_overextended](https://overextended.dev/) knowledge it needs — from a Skills system plus a RAG index of the ox source — so it builds against the APIs that **actually exist**, not a hallucinated guess.
 
 ---
 
@@ -127,6 +127,7 @@ end)
 - **📦 Whole resources, not snippets.** Every generation is a complete, ready-to-`ensure` folder — client + server Lua, NUI, SQL, and an `fxmanifest.lua` that matches disk exactly.
 - **🔁 Built to iterate.** Keep chatting. Each turn writes real files; **undo** + **auto-backup** make trying ideas free.
 - **🚀 Deploys itself.** On finish it RCONs `refresh` + `ensure <resource>` and scans the console — you see "loaded clean" or the exact error, in-app.
+- **🎮 Live game view.** Render your running FiveM server right inside the builder (D3D11 frame capture) — playtest and iterate on a resource without ever alt-tabbing out.
 - **💾 Local-first.** Files land on _your_ disk in _your_ server's `resources/`. No cloud editor, no remote sandbox.
 - **🔌 Model-agnostic.** Runs on Mastra + the [Vercel AI SDK](https://sdk.vercel.ai/) — Anthropic, OpenAI, Google, Groq, local Ollama. Swap the whole pipeline with one env var.
 - **🔒 Safe by construction.** The agent can only write inside your server's `resources/` folder — never anywhere else on your machine — and risky operations pause for approval ([how that works ↓](#-where-it-can-write-and-where-it-cant)).
@@ -137,28 +138,27 @@ end)
 ## 🧠 The pipeline
 
 ```
-            Prompt
-              │
-              ▼
-   ┌────────────────────────────────────────────┐
-   │              Generator agent               │
-   │            (one Mastra Agent)              │
-   │                                            │
-   │   on-demand Skills  ──►  ┌──────────────┐  │
-   │   pgvector RAG (ox)  ──► │   workspace  │  │
-   │                          │  fs · search │  │
-   │                          │   · sandbox  │  │
-   │                          └──────┬───────┘  │
-   │                                 ▼          │
-   │              writes Lua · NUI · fxmanifest │
-   │                       · SQL  ──►  disk     │
-   └────────────────────────────────────────────┘
-              │
-              ▼
-   RCON refresh + ensure → console scan → result
+   Prompt
+     │
+     ▼
+   Supervisor  ·  Mastra Agent Harness
+     │   spawns tool-isolated specialists over one shared workspace:
+     ├──►  context-scout        pulls ox Skills + pgvector RAG
+     ├──►  lua · nui · lore      writes the resource
+     ├──►  validator · security  checks it
+     └──►  docs-writer
+     │
+     │   workspace derives the fs · search · sandbox tools
+     ▼
+   Lua · NUI · fxmanifest.lua · SQL  ──►  resources/[local]/
+     │
+     ▼
+   RCON refresh + ensure  ──►  console scan  ──►  result
 ```
 
-Generation is **single-agent**: one Mastra `Agent` bound to a shared workspace writes everything — Lua, NUI, `fxmanifest.lua`, and SQL — itself. The workspace _derives_ the agent's filesystem, search, and sandbox tools automatically (no hand-maintained tool list, no token bloat from listing thirty tools it'll never call) and gives it a consistent view of the on-disk truth. It pulls ground-truth ox knowledge from on-demand Skills plus a pgvector RAG index of the ox source.
+Generation runs on the **Mastra Agent Harness**: a supervisor spawns focused, tool-isolated specialist sub-agents — context-scout, Lua, NUI, lore, validator, security-auditor, docs-writer — that share one workspace and hand off Lua, NUI, `fxmanifest.lua`, and SQL. The workspace _derives_ each agent's filesystem, search, and sandbox tools automatically (no hand-maintained tool list, no token bloat from listing thirty tools it'll never call) and gives them a consistent view of the on-disk truth. Each pulls only the ground-truth ox knowledge its step needs — from on-demand Skills plus a pgvector RAG index of the ox source.
+
+**How the workspace works.** The workspace is a [Mastra](https://mastra.ai/) `Workspace` bound to a single root — your server's `resources/` folder. From that one root it *derives* the agent's tools automatically (filesystem read / write / list / grep / edit / delete, plus a shell sandbox), so there's no hand-maintained tool list. `contained: true` sandboxes every write to `resources/[local]/` while still letting the agent *read* siblings like `ox_lib` and `ox_core` for real context. Skills load through the Agent-Skills `SKILL.md` spec (`skill` / `skill_search` / `skill_read`), BM25-indexed so only the knowledge a prompt needs enters context; sensitive ops (shell commands, file deletes) pause for approval. See the [Mastra docs](https://mastra.ai/docs).
 
 ---
 
@@ -182,7 +182,9 @@ myRP.build's knowledge about ox, Lua patterns, NUI, security, and resource templ
 skills/
 ├── Framework + DB
 │   ├── fw-ox-core/        ox_core player, money, jobs, commands
-│   └── db-oxmysql/        oxmysql query patterns
+│   ├── db-oxmysql/        oxmysql query patterns
+│   └── mariadb-*/         features · query optimization · system-versioned
+│                          tables · mysql→mariadb (game DB = MariaDB via oxmysql)
 ├── ox suite
 │   ├── ox-inventory/      inventory hooks, item creation
 │   ├── ox-target/         zone/entity targeting
@@ -203,13 +205,23 @@ skills/
 
 Instead of stuffing every pattern into one giant system prompt, the agent loads only what the prompt at hand needs — small input, relevant context, ground-truth APIs.
 
+**Where the skills come from** — a mix of first-party knowledge and attributed sources:
+
+| Skills | Source | License |
+|---|---|---|
+| `fw-ox-core`, `db-oxmysql`, `ox-*`, `nui-patterns`, `security`, `fxmanifest`, `server-practices`, + resource recipes | First-party — authored against the [Overextended docs](https://overextended.dev/) and the [ox source](https://github.com/overextended) | FSL-1.1 |
+| `lua-quality` | Adapted from [effective-fivem-lua](https://github.com/Manason/effective-fivem-lua) by Manason | credit |
+| `mariadb-*` — features · query-optimization · system-versioned-tables · mysql→mariadb | Vendored from [MariaDB/skills](https://github.com/MariaDB/skills) — the game DB is MariaDB via oxmysql | MIT |
+
+> Each vendored skill keeps its upstream `LICENSE` in its folder (e.g. `skills/mariadb-features/LICENSE`, MIT © Robert Silén). Upstream MariaDB infra skills (oracle-to-mariadb, replication, vector, mcp) are intentionally *not* vendored — out of scope for an ox game server.
+
 ---
 
 ## 🚀 Getting started
 
 > Pre-release: no signed installer yet — `dist/` artifacts publish to [GitHub Releases](https://github.com/hamchowderr/myrp.build/releases) once the first signed build cuts. For now, run from source.
 
-**Prerequisites:** Windows 10/11 · Node.js 20+ · a local FiveM server (or a path to one's `resources/` folder) · an [Anthropic API key](https://console.anthropic.com/) (or any [Vercel AI SDK](https://sdk.vercel.ai/) provider).
+**Prerequisites:** Windows 10/11 · Node.js 20+ · a local FiveM server (or a path to one's `resources/` folder) · a [Vercel AI Gateway key](https://vercel.com/ai-gateway) (free monthly credits — routes to Anthropic, OpenAI, Google + 280 more providers).
 
 ```bash
 git clone https://github.com/hamchowderr/myrp.build.git
@@ -221,9 +233,11 @@ cp .env.example .env
 To **self-host with your own key**, set two values in `.env`:
 
 ```bash
-ANTHROPIC_API_KEY=sk-ant-...   # your key — generation calls the model directly
+VERCEL_GATEWAY_KEY=vck_...     # Vercel AI Gateway key (free monthly credits) — routes to any provider
 FIVEM_STUDIO_DEV=1             # run the self-host path (skips sign-in + billing)
 ```
+
+> Inference always goes through the **Vercel AI Gateway** — there's no bare-provider or alternate-endpoint fallback. Pick any of its 280+ models with `MASTRA_MODEL` (e.g. `anthropic/claude-sonnet-4-6`, `openai/gpt-4-turbo`).
 
 Then launch:
 
@@ -246,7 +260,7 @@ Same app, same generator, same output — you just choose who holds the keys.
 | | 🧑‍💻 **Self-hosted** | ☁️ **Managed** |
 |---|---|---|
 | **Setup** | Clone the source, bring your own API key | Sign in with Discord, pick a plan |
-| **Inference** | Your key, called directly | Built in — no key needed |
+| **Inference** | Your Vercel AI Gateway key — any provider | Built in — no key needed |
 | **Auth & billing** | None | Discord sign-in + Stripe |
 | **Cost** | Your provider bill | One subscription |
 | **Updates** | `git pull` | Automatic |
@@ -267,7 +281,7 @@ myRP.build is a **local Electron app** — the agent runs on your machine and wr
 src/
 ├─ main/                Electron main process
 │  ├─ mastra/             Generator agent + shared workspace + cloud memory
-│  │                      (specialist sub-agents built but flag-gated off)
+│  │                      (supervisor + tool-isolated specialist sub-agents)
 │  ├─ ipc/                IPC handlers (chat, files, settings, fxdk, voice)
 │  ├─ fxdk/               Win32 FFI primitives (shared memory, named pipes,
 │  │                      nng RPC, CreateProcessW, D3D11 frame capture)
@@ -292,6 +306,25 @@ tests/
 ├─ mastra/               Agent tests (AIMock-intercepted, zero credits)
 └─ fxdk/                 Win32 FFI module tests
 ```
+
+### Stack
+
+| Layer | Technology |
+|---|---|
+| Agent framework | [Mastra](https://mastra.ai/) — `@mastra/core` (Agent + Workspace + Harness), `@mastra/memory`, `@mastra/pg`, `@mastra/fastembed` |
+| Inference | [Vercel AI SDK v6](https://sdk.vercel.ai/) → the [Vercel AI Gateway](https://vercel.com/ai-gateway) — one key, 280+ models across 29 providers |
+| LLM | Provider-agnostic — [Anthropic Claude](https://www.anthropic.com/), OpenAI, Google, Groq, local [Ollama](https://ollama.com/) — chosen with `MASTRA_MODEL` |
+| Embeddings | [fastembed](https://github.com/qdrant/fastembed) — local ONNX `bge-small` (384-d), bundled & pre-seeded; no embedding API |
+| Lua tooling | Bundled [lua-language-server](https://github.com/LuaLS/lua-language-server) (LSP + `--check`) + [luacheck](https://github.com/lunarmodules/luacheck) |
+| Knowledge | Agent Skills (`SKILL.md`, loaded on demand) + a [pgvector](https://github.com/pgvector/pgvector) RAG index of the ox source |
+| Desktop shell | [Electron](https://www.electronjs.org/) 42 + [electron-vite](https://electron-vite.org/) — main / preload / renderer |
+| Frontend | [React](https://react.dev/) 19, [Tailwind](https://tailwindcss.com/) v4, [shadcn/ui](https://ui.shadcn.com/) |
+| Win32 integration | [koffi](https://github.com/Koromix/koffi) FFI — shared memory, named pipes, D3D11 frame capture |
+| Database | Postgres + [pgvector](https://github.com/pgvector/pgvector) via [Supabase](https://supabase.com/) — local [CLI](https://supabase.com/docs/guides/cli); cloud for managed |
+| Auth *(managed)* | [Supabase Auth](https://supabase.com/docs/guides/auth) — Discord OAuth (PKCE) |
+| Billing *(managed)* | [Stripe](https://stripe.com/) + Deno edge functions (`create-checkout` · `create-portal` · `stripe-webhook`) |
+| Testing | [Vitest](https://vitest.dev/), [Playwright](https://playwright.dev/), [AIMock](https://aimock.copilotkit.dev/) |
+| Linting | [Biome](https://biomejs.dev/) |
 
 ---
 
@@ -334,7 +367,7 @@ npm run studio      # → http://localhost:4111
 
 What you get:
 
-- 💬 **Chat** with the generator directly (uses your `ANTHROPIC_API_KEY`)
+- 💬 **Chat** with the generator directly (uses your `VERCEL_GATEWAY_KEY`)
 - ✏️ **Edit & version the system prompt** — change the agent's instructions live, save a draft, publish
 - 🧠 **Memory & threads** — every conversation, persisted to your local Supabase
 - 🔭 **Traces** — per-run agent / tool / LLM spans, so you can see each step the agent took
@@ -347,16 +380,16 @@ Point it at your server with `STUDIO_RESOURCES_ROOT=/path/to/server/resources` (
 
 ## 🗺️ Roadmap
 
-- 🎮 **In-app game preview** — launch and iterate on a resource without ever leaving myRP.build.
-- 🤖 **Multi-agent generation** — the supervisor + specialist fan-out (context-scout, lua, nui, validator, security), once the architecture is doc-correct. Built today, flag-gated off.
-- 🧠 **Fine-tuned ox model** — a model trained on real ox generations for sharper, cheaper, more on-style output.
+- 🐧 **Linux support** — Windows-only today (the FXDK integration uses Win32 FFI); Linux is planned.
+- 📦 **Signed installer + auto-updates** — a one-click signed build and in-app updates for the first public release.
+- 🧩 **More ox coverage** — additional skills + resource recipes across the ox suite.
 
 ---
 
 ## ❓ FAQ
 
 - **Does it work with ESX or QBCore?** No — myRP.build targets **ox_overextended only** (`ox_core`, `ox_lib`, `ox_inventory`, `ox_target`, `oxmysql`). That focus is the point: the agent writes against APIs that actually exist instead of averaging across frameworks.
-- **Do I need an API key?** Self-hosting, yes — bring your own (`ANTHROPIC_API_KEY`, or any Vercel AI SDK provider). On the managed plan, inference is built in.
+- **Do I need an API key?** Self-hosting, yes — bring your own [Vercel AI Gateway key](https://vercel.com/ai-gateway) (`VERCEL_GATEWAY_KEY`; free monthly credits, any provider). On the managed plan, inference is built in.
 - **Where do generated files go?** Into your server's `resources/[local]/<name>/`. The agent is confined to that `resources/` folder and can't touch anything else on your machine.
 - **What models can I use?** **280+ models across 29 providers** — Anthropic, OpenAI, Google, Meta, Mistral, xAI, DeepSeek, Cohere, and more — all reachable through the [Vercel AI Gateway](https://vercel.com/ai-gateway). Browse the full list at **[vercel.com/ai-gateway/models](https://vercel.com/ai-gateway/models)** (live JSON: [`ai-gateway.vercel.sh/v1/models`](https://ai-gateway.vercel.sh/v1/models)). Switch with one env var — e.g. `MASTRA_MODEL=anthropic/claude-sonnet-4-6`, or any id from that list. Self-hosting, you can also run a local model via [Ollama](https://ollama.com/).
 - **Does it run on macOS or Linux?** Windows only today — the FXDK integration uses Win32 FFI. Linux support is on the roadmap.

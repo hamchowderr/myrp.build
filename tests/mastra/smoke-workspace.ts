@@ -1,5 +1,5 @@
 /**
- * 55x.1 go/no-go smoke test: prove @mastra/core Workspace embeds and runs
+ * Go/no-go smoke test: prove @mastra/core Workspace embeds and runs
  * outside the HTTP-server / `mastra dev` path (the original rejection's blocker).
  *
  * Creates a throwaway fixture FiveM resources tree, builds the workspace, init()s

@@ -111,6 +111,25 @@ interface MyRPBuildAPI {
       ) => void,
     ) => () => void;
   };
+  harness: {
+    isEnabled: () => Promise<boolean>;
+    start: (payload: {
+      text: string;
+      chatId: string;
+      model?: string;
+      accessToken?: string;
+      workspaceId?: string;
+    }) => Promise<void>;
+    cancel: () => Promise<void>;
+    approve: (
+      decision: "approve" | "decline" | "always_allow_category",
+      toolCallId?: string,
+    ) => Promise<void>;
+    respondSuspension: (answer: unknown, toolCallId?: string) => Promise<void>;
+    onEvent: (
+      callback: (event: { type: string; [k: string]: unknown }) => void,
+    ) => () => void;
+  };
   feedback: {
     rate: (generationId: string, rating: "up" | "down") => Promise<boolean>;
   };
@@ -195,7 +214,7 @@ interface MyRPBuildAPI {
     set: (key: string, value: string) => Promise<void>;
     remove: (key: string) => Promise<void>;
   };
-  listResources: (localPath: string) => Promise<string[]>;
+  listResources: (localPath: string) => Promise<{ name: string; hasNui: boolean }[]>;
   deleteResource: (localPath: string, resourceName: string) => Promise<void>;
   listDir: (
     dirPath: string,

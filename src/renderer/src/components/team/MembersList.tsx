@@ -1,5 +1,5 @@
 /**
- * Members list for the active workspace (teams epic 1gf, fivem-studio-nev).
+ * Members list for the active workspace (teams epic).
  * Renders each member with role; owners get a remove control (remove_member,
  * server-side owner-checked; owners can't be removed).
  */

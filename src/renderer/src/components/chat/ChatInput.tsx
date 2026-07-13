@@ -1,5 +1,5 @@
 /**
- * Chat input bar, built on the AI Elements `prompt-input` component (d5n).
+ * Chat input bar, built on the AI Elements `prompt-input` component.
  * No bespoke input UI — PromptInput owns the textarea, footer, submit/stop button,
  * and the model selector. App-specific extras (prompt history, server context,
  * settings/theme, the dev/prod account slot) hang off PromptInputTools.
@@ -53,21 +53,16 @@ import {
 import { useCallback, useState } from "react";
 import { ContextBadges } from "./ContextBadges";
 
-// Curated model list, routed through the unified AI Gateway provider (fivem-studio-ifo).
-// Anthropic ids are bare (main normalizes -> anthropic/<id>); OpenAI ids carry the
-// `openai/` prefix so the normalizer passes them through untouched.
+// Curated model list — Anthropic-only. The user-facing picker offers only
+// Anthropic models; the underlying AI Gateway stays provider-agnostic (agent.ts), so
+// this is a product-level curation, not a plumbing change. Ids are bare — main
+// normalizes them to `anthropic/<id>` (src/main/ipc/chat.ts).
 const ANTHROPIC_MODELS = [
   { id: "claude-sonnet-4-6", label: "Sonnet 4.6", provider: "anthropic" as const },
   { id: "claude-opus-4-6", label: "Opus 4.6", provider: "anthropic" as const },
   { id: "claude-haiku-4-5", label: "Haiku 4.5", provider: "anthropic" as const },
 ];
-const OPENAI_MODELS = [
-  { id: "openai/gpt-5.5", label: "GPT-5.5", provider: "openai" as const },
-  { id: "openai/gpt-5.2", label: "GPT-5.2", provider: "openai" as const },
-  { id: "openai/gpt-4.1-mini", label: "GPT-4.1 mini", provider: "openai" as const },
-  { id: "openai/o3", label: "o3", provider: "openai" as const },
-];
-const MODELS = [...ANTHROPIC_MODELS, ...OPENAI_MODELS];
+const MODELS = ANTHROPIC_MODELS;
 
 function formatRelativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -84,7 +79,7 @@ interface ChatInputProps {
   onSend: (message: string, model?: string) => void;
   onCancel: () => void;
   isGenerating: boolean;
-  /** A gated tool is awaiting approval (xqc.1) — hint that a typed reply approves/declines it. */
+  /** A gated tool is awaiting approval — hint that a typed reply approves/declines it. */
   awaitingApproval?: boolean;
   context: ServerContext;
   promptHistory: PromptHistoryEntry[];
@@ -112,11 +107,11 @@ export function ChatInput({
   const [value, setValue] = useState("");
   const [model, setModel] = useState(MODELS[0].id);
   const [modelOpen, setModelOpen] = useState(false);
-  // Voice input (adb): mic → record → transcribe → append to the prompt.
+  // Voice input: mic → record → transcribe → append to the prompt.
   const voice = useVoiceInput((text) => setValue((v) => (v.trim() ? `${v.trim()} ${text}` : text)));
   const currentModel = MODELS.find((m) => m.id === model) ?? MODELS[0];
-  // Account UI comes from context (UserButton in prod, nothing in dev) — keeps
-  // @clerk out of this always-loaded component (lwt). canGenerate gates the
+  // Account UI comes from context (workspace switcher in prod, nothing in dev) — keeps
+  // @supabase out of this always-loaded component. canGenerate gates the
   // input on the monthly quota; dev-bypass is never gated.
   const { accountSlot, canGenerate, isDev, upgrade } = useAccount();
   const quotaBlocked = !isDev && !canGenerate;
@@ -182,10 +177,10 @@ export function ChatInput({
 
         <PromptInputFooter>
           <PromptInputTools>
-            {/* Account (prod: Clerk UserButton; dev: none) */}
+            {/* Account (prod: workspace switcher; dev: none) */}
             {accountSlot}
 
-            {/* Voice input (adb): record → transcribe → append to the prompt */}
+            {/* Voice input: record → transcribe → append to the prompt */}
             <PromptInputButton
               tooltip={voice.recording ? "Stop & transcribe" : "Voice input"}
               onClick={voice.toggle}
@@ -213,10 +208,7 @@ export function ChatInput({
                 <ModelSelectorInput placeholder="Search models…" />
                 <ModelSelectorList>
                   <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
-                  {[
-                    { heading: "Anthropic", items: ANTHROPIC_MODELS },
-                    { heading: "OpenAI", items: OPENAI_MODELS },
-                  ].map((group) => (
+                  {[{ heading: "Anthropic", items: ANTHROPIC_MODELS }].map((group) => (
                     <ModelSelectorGroup key={group.heading} heading={group.heading}>
                       {group.items.map((m) => (
                         <ModelSelectorItem
@@ -247,7 +239,7 @@ export function ChatInput({
                   </PromptInputButton>
                 </PopoverTrigger>
                 <PopoverContent className="w-80 p-0" align="end">
-                  <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                  <div className="flex items-center justify-between border-b border-border-subtle/40 px-3 py-2">
                     <span className="font-mono text-xs font-semibold uppercase text-muted-foreground">
                       Prompt History
                     </span>
@@ -325,7 +317,7 @@ export function ChatInput({
                 </PromptInputButton>
               </PopoverTrigger>
               <PopoverContent className="w-72 p-0" align="end">
-                <div className="border-b border-border px-3 py-2">
+                <div className="border-b border-border-subtle/40 px-3 py-2">
                   <Button
                     variant="ghost"
                     size="sm"

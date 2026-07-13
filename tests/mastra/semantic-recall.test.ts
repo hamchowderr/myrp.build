@@ -3,7 +3,7 @@ import type { RunStorageContext } from "../../src/main/mastra/storage/context";
 import type { RunSupabaseClient } from "../../src/main/mastra/storage/supabase-client";
 import { SupabaseVector } from "../../src/main/mastra/storage/vector";
 
-// z8j8.4: SupabaseVector backs Mastra semantic recall on cloud pgvector via
+// SupabaseVector backs Mastra semantic recall on cloud pgvector via
 // SECURITY DEFINER RPCs. Stub the run client and assert upsert/query/delete issue
 // the right RPC + args and map rows back to the MastraVector QueryResult shape.
 
@@ -43,7 +43,7 @@ function makeCtx(): { ctx: RunStorageContext; rpcCalls: RpcCall[] } {
   return { ctx, rpcCalls };
 }
 
-describe("SupabaseVector (z8j8.4)", () => {
+describe("SupabaseVector", () => {
   it("upsert writes rows through mastra_upsert_embeddings and returns the ids", async () => {
     const { ctx, rpcCalls } = makeCtx();
     const ids = await new SupabaseVector(ctx).upsert({

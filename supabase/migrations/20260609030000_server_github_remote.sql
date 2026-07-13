@@ -1,4 +1,4 @@
--- ── Server GitHub remote (fivem-studio-1yef.2) ───────────────────────────────
+-- ── Server GitHub remote ─────────────────────────────────────────────────────
 -- A server folder can be backed up to a GitHub repo (git, NOT Dolt). The repo
 -- URL is SHARED across the workspace so every team member's client points at the
 -- same remote — team sharing itself is GitHub-native (collaborator invites),

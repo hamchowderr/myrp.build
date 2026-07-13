@@ -1,6 +1,6 @@
 // Renderer Supabase client. Supabase Auth is now the identity provider (native
-// Discord OAuth via PKCE), replacing Clerk — clerk-js had no Electron session
-// persistence (fivem-studio-gvh). RLS scopes by the native `auth.uid()` carried
+// Discord OAuth via PKCE). The prior auth provider had no Electron session
+// persistence. RLS scopes by the native `auth.uid()` carried
 // in the Supabase JWT this client manages.
 //
 // The auth block makes the session durable in Electron: a custom `storage`

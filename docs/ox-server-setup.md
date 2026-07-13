@@ -2,7 +2,7 @@
 
 Authoritative setup notes for standing up an **ox_overextended** FiveM server,
 sourced from the official CommunityOx/Overextended docs and the ox_core recipe.
-Captured 2026-05-26 for FiveM Studio (bead `fivem-studio-ghg`).
+Captured 2026-05-26 for myRP.build.
 
 ## Sources
 
@@ -30,7 +30,7 @@ node_version '22'    -- bundled in recent FXServer artifacts
 
 - ox_core uses the **`mariadb` npm driver directly** (`server/db/pool.ts`) and
   oxmysql for everything else. **MariaDB is required** (not MySQL-only, not Dolt —
-  see `docs/dolt-mariadb-function-default-gap.md` / dolthub/dolt#11098).
+  see dolthub/dolt#11098, fixed in Dolt v2.0.8).
 - Import `ox_core/sql/install.sql` once. It `CREATE DATABASE`s and `USE`s a schema
   named **`overextended`** by default (the txAdmin recipe substitutes `{{dbName}}`).
 - At runtime ox_core also auto-creates two aux tables (`user_tokens`,
@@ -73,7 +73,7 @@ ensure ox_core
 
 `sv_enforceGameBuild 3258` is already required/standard and present in our cfg.
 
-## ox suite (added 2026-05-26, bead fivem-studio-h9j)
+## ox suite (added 2026-05-26)
 
 The Overextended ox suite on top of the core. Verified-loading versions + deps:
 

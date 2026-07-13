@@ -1,9 +1,9 @@
 /**
- * Thumbs up/down feedback on a completed generation (fivem-studio-zhk.9).
+ * Thumbs up/down feedback on a completed generation.
  *
  * Renders under the last assistant message once generation finishes. The rating
  * is sent to main (`feedback:rate`) which updates the generation_logs row — the
- * implicit/explicit quality signal that seeds the fine-tune dataset (zhk.10).
+ * implicit/explicit quality signal that seeds the fine-tune dataset.
  */
 
 import { MessageAction, MessageActions } from "@renderer/components/ai-elements/message";

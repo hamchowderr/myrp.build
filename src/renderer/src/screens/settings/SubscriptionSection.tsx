@@ -35,7 +35,7 @@ export function SubscriptionSection() {
 
   const usagePercent = usageLimit > 0 ? (usageCount / usageLimit) * 100 : 0;
 
-  // Billing applies to the ACTIVE workspace (teams epic 1gf, 7da). Only its owner
+  // Billing applies to the ACTIVE workspace (teams epic). Only its owner
   // may upgrade/manage; a developer sees the plan read-only. The edge fns also
   // enforce owner-only with a 403 — this is the matching client-side gate.
   const activeWs = workspaces.find((w) => w.workspaceId === workspaceId);

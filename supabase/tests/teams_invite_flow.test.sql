@@ -1,4 +1,4 @@
--- Integration test for the teams invite->accept flow (fivem-studio-v05).
+-- Integration test for the teams invite->accept flow.
 -- Run locally:  supabase db query --local -f supabase/tests/teams_invite_flow.test.sql
 -- One self-contained DO block: simulates two authenticated users via
 -- request.jwt.claims (sub/email), exercises every management RPC + the key negative

@@ -1,5 +1,5 @@
 /**
- * Mastra Workspace factory for FiveM Studio (migration epic 55x, Phase 1).
+ * Mastra Workspace factory for myRP.build (migration, Phase 1).
  *
  * Replaces the raw @anthropic-ai/sdk + custom 4-tool loop (orchestrator.ts) with
  * an embedded Mastra Workspace running in the Electron main process. The Workspace
@@ -12,8 +12,8 @@
  *     (separate @mastra/workspace-fs-* packages are only for remote backends).
  *   - Approval is configured per-tool via `tools: { <name>: { requireApproval } }`
  *     — this REPLACES the provider-level requireApproval/requireReadBeforeWrite
- *     flags the original plan assumed (55x.2 correction).
- *   - Tool names are `mastra_workspace_*` (relevant to renderer remapping, 55x.16).
+ *     flags the original plan assumed.
+ *   - Tool names are `mastra_workspace_*` (relevant to renderer remapping).
  *
  * Call `await workspace.init()` before use (connects filesystem + sandbox, builds
  * the search index over autoIndexPaths).
@@ -45,10 +45,10 @@ function createFastembedEmbedder() {
 
 /**
  * Hybrid (BM25 + semantic) search config — restores QMD's semantic recall over
- * the server's OWN resources (55x.17 decision). Uses pgvector on RAG_DATABASE_URL
+ * the server's OWN resources. Uses pgvector on RAG_DATABASE_URL
  * + local fastembed embeddings (no API key).
  *
- * DEV-ONLY (M3.3 — fivem-studio-r4w): this is the ONE remaining direct
+ * DEV-ONLY: this is the ONE remaining direct
  * RAG_DATABASE_URL pgvector consumer, and @mastra/pg's PgVector fundamentally
  * needs a raw connection string (it can't go through supabase-js / an RPC). The
  * shipped client must carry NO DB credential, so this path is hard-gated to dev
@@ -81,12 +81,13 @@ function hybridSearchConfig(): Partial<
  * `resources/[local]/`. Rooting at `resources/` lets the agent read sibling
  * resources (ox_lib, ox_inventory, ox_core) for real context, while
  * `contained: true` still confines every operation — including writes — to
- * within that root, blocking path-traversal and symlink escapes (55x.14).
+ * within that root, blocking path-traversal and symlink escapes.
  *
  * Generated resources land under `[local]/<name>/` relative to this root, which
  * is where the existing fileWriter/manifest flow already expects them.
  *
- * No LSP and no skills here — those land in Phase 3 and Phase 2 respectively.
+ * Skills (ox knowledge) and the Lua LSP (bundled lua-language-server) are both
+ * wired below when available.
  */
 export interface FiveMWorkspaceOptions {
   /** @deprecated No longer gates writes — writes always land immediately. Accepted for callers; ignored. */
@@ -95,7 +96,8 @@ export interface FiveMWorkspaceOptions {
    * Gate SENSITIVE ops (shell execute_command + filesystem delete) behind
    * approve/decline (the Settings toggle). File writes are NEVER gated — they
    * always land immediately. Requires a storage provider for snapshots (we have
-   * PostgresStore via memory). Default `false`.
+   * PostgresStore via memory). Default `true` (secure default; opt-out via the
+   * Settings approval toggle).
    */
   requireApproval?: boolean;
   /**
@@ -132,7 +134,7 @@ export interface FiveMWorkspaceOptions {
    * BM25 init is ~215ms and returns correctly-scoped [local] hits. Semantic ox
    * knowledge already comes from the RAG pipeline (queryOxContext), not here.
    *
-   * Revive this only with the persistent-workspace path (fivem-studio-ht1):
+   * Revive this only with the persistent-workspace path:
    * init once per session + a cleanly-scoped index. Still env-gated: even when
    * `true`, hybrid only engages in dev when RAG_DATABASE_URL is set.
    */
@@ -151,6 +153,14 @@ export const OX_SKILLS = [
   "security",
   "fw-ox-core",
   "db-oxmysql",
+  // Official MariaDB knowledge skills (MIT, vendored from github.com/MariaDB/skills).
+  // The generated-server game DB is MariaDB via oxmysql, so these sharpen the SQL
+  // the agent writes. Migration/infra/agent-plumbing skills from upstream are
+  // intentionally NOT vendored (oracle-to-mariadb, replication-and-ha, vector, mcp).
+  "mysql-to-mariadb",
+  "mariadb-features",
+  "mariadb-query-optimization",
+  "mariadb-system-versioned-tables",
   "ox-banking",
   "ox-doorlock",
   "ox-fuel",
@@ -160,7 +170,7 @@ export const OX_SKILLS = [
   "hud-design",
   "lore",
   "server-practices",
-  // Resource-recipe skills (7dr): full ox_overextended build blueprints.
+  // Resource-recipe skills: full ox_overextended build blueprints.
   "carwash",
   "vehicle-spawner",
   "garage",
@@ -176,14 +186,43 @@ export function oxSkillPaths(skillsRoot: string): string[] {
   return OX_SKILLS.map((name) => `${skillsRoot}/${name}`);
 }
 
+/**
+ * Lua LSP config: run the bundled lua-language-server as an in-loop LSP over the
+ * agent's edit tools, so it sees real Lua diagnostics while generating (the Mastra
+ * LSP-client URI bug that blocked this is fixed upstream, #17813). Lua isn't a built-in
+ * Mastra server, so register it as a custom server pointed at LUALS_PATH (resolved in
+ * src/main/index.ts to the bundled binary). LocalSandbox provides the process manager
+ * LSP needs. Returns {} when unresolved (e.g. Mastra Studio / tests) so LSP is simply off.
+ */
+function luaLspConfig(): Pick<WorkspaceConfig, "lsp"> | Record<string, never> {
+  const bin = process.env.LUALS_PATH;
+  if (!bin) return {};
+  return {
+    lsp: {
+      servers: {
+        lua: {
+          id: "lua-language-server",
+          name: "Lua Language Server",
+          languageIds: ["lua"],
+          extensions: [".lua"],
+          markers: ["fxmanifest.lua", ".luarc.json", ".git"],
+          // Quote the path — the bundled binary lives under a resources dir that can
+          // contain spaces. Run with no args → LuaLS defaults to stdio LSP mode.
+          command: `"${bin}"`,
+        },
+      },
+    },
+  };
+}
+
 export function createFiveMWorkspace(
   resourcesRoot: string,
   opts: FiveMWorkspaceOptions = {},
 ): Workspace {
-  const approval = opts.requireApproval ?? false;
+  const approval = opts.requireApproval ?? true;
   const skillPaths = opts.skillPaths?.length ? opts.skillPaths : undefined;
   return new Workspace({
-    name: "fivem-studio",
+    name: "myrp-build",
     filesystem: new LocalFilesystem({
       basePath: resourcesRoot,
       contained: true,
@@ -192,16 +231,18 @@ export function createFiveMWorkspace(
       ...(skillPaths ? { allowedPaths: skillPaths } : {}),
     }),
     sandbox: new LocalSandbox({ workingDirectory: resourcesRoot }),
-    // Hybrid search over the server's resources (55x.17): BM25 keyword always on,
+    // Hybrid search over the server's resources: BM25 keyword always on,
     // plus pgvector + local fastembed semantic when (in dev) RAG_DATABASE_URL is
     // set (restores QMD's semantic recall). Fail-safe to BM25-only otherwise.
     bm25: true,
     autoIndexPaths: opts.indexPaths ?? [resourcesRoot],
     // BM25-only by default (fast, clean, correctly scoped). Hybrid is opt-in and
-    // still env-gated — see FiveMWorkspaceOptions.hybrid / fivem-studio-ht1.
+    // still env-gated — see FiveMWorkspaceOptions.hybrid.
     ...(opts.hybrid ? hybridSearchConfig() : {}),
     // ox-only FiveM knowledge skills exposed as skill/skill_search/skill_read.
     ...(skillPaths ? { skills: skillPaths } : {}),
+    // In-loop Lua diagnostics via the bundled lua-language-server; off when unresolved.
+    ...luaLspConfig(),
     tools: {
       // Writes ALWAYS land immediately — the product's instant-generation feel.
       [WORKSPACE_TOOLS.FILESYSTEM.WRITE_FILE]: {
@@ -225,12 +266,12 @@ export function createFiveMWorkspace(
 
 /**
  * Is the RAG pgvector DB actually reachable? A short-timeout connect probe, used
- * to decide whether hybrid search is safe to enable (fivem-studio-odm). Returns
+ * to decide whether hybrid search is safe to enable. Returns
  * false (never throws) when RAG_DATABASE_URL is unset or the DB can't be reached.
  */
 async function ragDbReachable(): Promise<boolean> {
   // Dev-only: the hybrid pgvector path it gates is dev-only (no DB credential
-  // ships) — never probe a direct connection in a packaged build (M3.3, r4w).
+  // ships) — never probe a direct connection in a packaged build.
   if (!__DEV_BYPASS__) return false;
   const url = process.env.RAG_DATABASE_URL;
   if (!url) return false;
@@ -250,7 +291,7 @@ async function ragDbReachable(): Promise<boolean> {
 
 /**
  * Create the workspace and init() it, degrading to BM25-only when HYBRID is
- * requested but the RAG DB is unreachable (fivem-studio-odm). init() does NOT
+ * requested but the RAG DB is unreachable. init() does NOT
  * eagerly connect — a set-but-down DB only blows up later at SEARCH time (the
  * hybrid engine embeds the query then hits pgvector), which would break the agent
  * mid-generation. So we PREFLIGHT the DB here and drop to BM25-only before
@@ -274,7 +315,7 @@ export async function createAndInitWorkspace(
   } catch (err) {
     // Hybrid init embeds the corpus via local fastembed — a first-run model
     // download or onnxruntime init failure would otherwise crash the whole
-    // generation (fivem-studio-1er). The DB preflight above can't catch embedder
+    // generation. The DB preflight above can't catch embedder
     // failures. Degrade to BM25-only and retry so generation continues.
     if (!effective.hybrid) throw err; // BM25-only already — nothing left to drop
     console.warn(

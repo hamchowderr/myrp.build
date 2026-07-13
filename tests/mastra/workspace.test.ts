@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createFiveMWorkspace } from "../../src/main/mastra/workspace";
 
 /**
- * Unit tests for the workspace tools the agent relies on (55x.20) — filesystem
+ * Unit tests for the workspace tools the agent relies on — filesystem
  * read/write/list/exists/stat, BM25 search, and sandbox command execution. No
  * LLM involved, so no AIMock; this is the foundation the generation loop sits on.
  */

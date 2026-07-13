@@ -10,7 +10,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 function loadTheme(): ThemeType {
   try {
-    const stored = localStorage.getItem("fivem-studio-theme");
+    const stored = localStorage.getItem("myrp-build-theme");
     if (stored) {
       const parsed = JSON.parse(stored);
       return { preset: "default", radius: "default", scale: "none", ...parsed };
@@ -24,7 +24,7 @@ export function ActiveThemeProvider({ children }: { children: ReactNode }) {
 
   function setTheme(next: ThemeType) {
     setThemeState(next);
-    localStorage.setItem("fivem-studio-theme", JSON.stringify(next));
+    localStorage.setItem("myrp-build-theme", JSON.stringify(next));
   }
 
   useEffect(() => {

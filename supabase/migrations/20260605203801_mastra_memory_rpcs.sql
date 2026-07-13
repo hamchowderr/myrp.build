@@ -1,4 +1,4 @@
--- ── Mastra cloud chat memory write RPCs (M2.2 — fivem-studio-490) ────────────
+-- ── Mastra cloud chat memory write RPCs ──────────────────────────────────────
 -- All SECURITY DEFINER, set search_path = public. The mastra_threads /
 -- mastra_messages tables are RLS SELECT-only (M2.1), so EVERY write happens here
 -- and authorization is enforced INSIDE each function:

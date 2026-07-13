@@ -1,5 +1,5 @@
 /**
- * Resource / output browser (fivem-studio-dnx8.4).
+ * Resource / output browser.
  *
  * Browse and manage everything generated for the active server outside the chat
  * thread: the resources under [local], each resource's files, its generation

@@ -1,5 +1,5 @@
 /**
- * Create a new team workspace (teams epic 1gf, fivem-studio-nev). Any signed-in
+ * Create a new team workspace (teams epic). Any signed-in
  * user can spin up a team workspace they own (create_team_workspace). After
  * creation the caller refreshes the workspace list (and can switch to it).
  */

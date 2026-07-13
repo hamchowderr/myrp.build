@@ -1,5 +1,5 @@
 /**
- * Static validator tool for generated ox_overextended resources (zhk.8).
+ * Static validator tool for generated ox_overextended resources.
  *
  * Deterministic, zero-false-positive checks the agent runs in its VERIFY step
  * so it can self-repair before finishing. Catches the highest-frequency
@@ -12,19 +12,22 @@
  *   - backtick/template-literal strings — always a Lua syntax error (E011)
  *   - ox_lib not declared as a dependency (required for every ox resource)
  *
- * Deep Lua *semantics* (full syntax/type checking) are out of scope here — a Lua
- * LSP would cover that, but it was removed (the lua-language-server route was
- * blocked by a Mastra LSP-client URI bug; see fivem-studio-ast). This layer is
- * intentionally pure-JS so it has no external dependency and never false-positives.
- * The backtick check (fivem-studio-2hd) is the one syntax check cheap enough to do
+ * These pure-JS checks have no external dependency and never false-positive. On top
+ * of them, two real Lua engines gate syntax/semantics when their (bundled) binaries
+ * resolve: luacheck (E0xx syntax) and lua-language-server --check (Error-level) —
+ * the Mastra LSP-client URI bug that once blocked LuaLS is fixed upstream (#17813), so
+ * the Workspace also runs LuaLS as an in-loop LSP now (mastra/workspace.ts). Both gates
+ * degrade gracefully when the binary is missing.
+ * The backtick check is the one syntax check cheap enough to do
  * here losslessly: backticks are never valid Lua tokens, so a string/comment-aware
  * scan for a stray ` is zero-false-positive and catches the model's single most
  * common JS-ism, which the post-hoc luacheck scorer kept flagging as E011.
  */
 
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
@@ -100,7 +103,7 @@ export function usesBacktickString(lua: string): boolean {
 
 /**
  * Run luacheck (when available) over the resource dir and return ERROR-level
- * (syntax) issues only — the real Lua syntax gate (fivem-studio-2hd). Graceful:
+ * (syntax) issues only — the real Lua syntax gate. Graceful:
  * resolves to [] when luacheck isn't installed, so the validator never hard-depends
  * on it (pure-JS checks remain the universal net). Warnings (undefined FiveM
  * globals, unused vars, style) are intentionally ignored — only syntax errors block.
@@ -111,7 +114,7 @@ function luacheckSyntaxErrors(dir: string): Promise<ValidationIssue[]> {
     let proc: ReturnType<typeof spawn>;
     try {
       // LUACHECK_PATH is set by main to the asar-unpacked bundled binary in packaged
-      // builds (fivem-studio-mxo); in dev it falls back to luacheck on PATH.
+      // builds; in dev it falls back to luacheck on PATH.
       const bin = process.env.LUACHECK_PATH || "luacheck";
       proc = spawn(bin, [dir, "--formatter", "plain", "--codes", "--no-color"], {
         windowsHide: true,
@@ -148,6 +151,75 @@ function parseLuacheckErrors(stdout: string, dir: string): ValidationIssue[] {
     issues.push({
       severity: "error",
       message: `Lua syntax error (luacheck ${code}) at ${ln}:${col} — ${msg}`,
+      file: rel || file,
+    });
+  }
+  return issues;
+}
+
+/**
+ * Run lua-language-server --check over the resource dir and return ERROR-level
+ * diagnostics only. At --checklevel=Error LuaLS reports genuine syntax/semantic
+ * errors but NOT the undefined-global WARNINGS every FiveM native would trip
+ * (exports/lib/Citizen/vector3/GetPlayerPed/… aren't in LuaLS's known globals) — that
+ * exclusion IS the calibrated gate, so it complements luacheck without drowning the
+ * agent in false positives. Graceful: skips when LUALS_PATH is unset/missing (main
+ * resolves the bundled binary). --logpath is a throwaway temp dir so LuaLS never writes
+ * into its install tree (read-only in a packaged build). Non-blocking, capped spawn.
+ */
+export function luaLsCheckErrors(dir: string): Promise<ValidationIssue[]> {
+  const bin = process.env.LUALS_PATH;
+  if (!bin || !existsSync(bin)) return Promise.resolve([]);
+  return new Promise((resolve_) => {
+    const logPath = mkdtempSync(join(tmpdir(), "luals-check-"));
+    const finish = (out: string) => {
+      rmSync(logPath, { recursive: true, force: true });
+      resolve_(parseLuaLsErrors(out, dir));
+    };
+    let proc: ReturnType<typeof spawn>;
+    try {
+      proc = spawn(bin, ["--check", dir, "--checklevel=Error", `--logpath=${logPath}`], {
+        windowsHide: true,
+      });
+    } catch {
+      finish("");
+      return;
+    }
+    let out = "";
+    proc.on("error", () => finish("")); // spawn failure → skip (keep other gates)
+    proc.stdout?.on("data", (d) => {
+      out += d;
+    });
+    proc.stderr?.on("data", (d) => {
+      out += d;
+    });
+    const timer = setTimeout(() => {
+      proc.kill();
+      finish(out);
+    }, 25_000);
+    proc.on("close", () => {
+      clearTimeout(timer);
+      finish(out);
+    });
+  });
+}
+
+/** Parse LuaLS `--check` output lines `<file>:<line>:<col> [Error] <message> (<code>)`.
+ *  ANSI is stripped first; only [Error]-level lines become issues (warnings excluded). */
+function parseLuaLsErrors(stdout: string, dir: string): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping ANSI SGR escapes
+  const clean = stdout.replace(/\[[0-9;]*m/g, "");
+  // Split on \r too: LuaLS overwrites its progress line with carriage returns, so the
+  // diagnostic shares a \n-line with "Initializing …" and JS regex `.` won't cross \r.
+  for (const line of clean.split(/[\r\n]+/)) {
+    const m = line.match(/^\s*(.*?\.lua):(\d+):(\d+)\s+\[Error\]\s+(.*?)\s*\(([\w-]+)\)\s*$/);
+    if (!m) continue;
+    const [, file, ln, col, msg, code] = m;
+    const rel = relative(dir, file).replace(/\\/g, "/");
+    issues.push({
+      severity: "error",
+      message: `Lua error (lua-language-server ${code}) at ${ln}:${col} — ${msg}`,
       file: rel || file,
     });
   }
@@ -350,9 +422,14 @@ export async function validateResource(
     });
   }
 
-  // Real Lua syntax gate — luacheck when available (catches what the pure-JS checks
-  // can't, e.g. malformed if/then/else). No-op when luacheck isn't installed.
-  for (const issue of await luacheckSyntaxErrors(dir)) issues.push(issue);
+  // Real Lua syntax/semantics gate — luacheck (E0xx) + lua-language-server --check
+  // (Error-level) run concurrently; each catches what the pure-JS checks and the
+  // other can't, and both no-op gracefully when their binary isn't resolved.
+  const [luacheckIssues, lualsIssues] = await Promise.all([
+    luacheckSyntaxErrors(dir),
+    luaLsCheckErrors(dir),
+  ]);
+  issues.push(...luacheckIssues, ...lualsIssues);
 
   return issues;
 }

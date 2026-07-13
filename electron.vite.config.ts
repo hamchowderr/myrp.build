@@ -50,13 +50,13 @@ export default defineConfig(({ mode }) => {
   // the Supabase URL + anon key — both publishable, RLS-protected values that are
   // safe to ship (same policy as the anon key above). Without this the packaged
   // main process has no URL at runtime and silently degrades to no-cloud-memory.
-  // (fivem-studio-dhq / M3.4 — pulled forward so M2 cloud memory works in a build.)
+  // (M3.4 — pulled forward so M2 cloud memory works in a build.)
   const supaUrl = env.VITE_SUPABASE_URL ?? env.SUPABASE_URL;
   if (supaUrl) {
     mainDefine["process.env.VITE_SUPABASE_URL"] = JSON.stringify(supaUrl);
   }
 
-  // Build-time bypass literal (fivem-studio-lwt hardening). `true` ONLY when
+  // Build-time bypass literal (hardening). `true` ONLY when
   // electron-vite is running in dev/preview mode AND FIVEM_STUDIO_DEV=1 is set
   // in .env at build time. Every packaged build inlines the literal `false`, so
   // the bypass branch + env reads + dev account path are physically removed

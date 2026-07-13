@@ -1,6 +1,6 @@
 -- ── Clean baseline 02: enums ─────────────────────────────────────────────────
 -- workspace_member_role: 'admin' is currently defunct (only owner/member are
--- assigned); the teams epic (fivem-studio-1gf / v05) renames 'member'->'developer'
+-- assigned); the teams epic renames 'member'->'developer'
 -- in its own forward migration — the baseline stays faithful to today's schema.
 
 create type public.workspace_member_role as enum ('owner', 'admin', 'member');

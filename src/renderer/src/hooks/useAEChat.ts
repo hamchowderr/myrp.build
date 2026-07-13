@@ -1,5 +1,5 @@
 /**
- * Chat state for the AI-Elements generation UI (fivem-studio-k8v). Lifts useChat
+ * Chat state for the AI-Elements generation UI. Lifts useChat
  * (over the IPC ChatTransport) plus prompt history and the generation result so
  * the Generator can share it across AEChat, HeaderBar, StatusBar and the right
  * panel. Replaces the legacy useGeneratorChat (StreamMessage pipeline).
@@ -21,25 +21,25 @@ export interface UseAEChatReturn {
   isGenerating: boolean;
   status: string;
   result: GenerationResult | null;
-  /** Id of the just-completed generation (for thumbs up/down feedback, zhk.9). */
+  /** Id of the just-completed generation (for thumbs up/down feedback). */
   lastGenerationId: string | null;
   canUndo: boolean;
-  /** A gated tool is paused awaiting approval (xqc.1) — a typed reply approves/declines it. */
+  /** A gated tool is paused awaiting approval — a typed reply approves/declines it. */
   awaitingApproval: boolean;
   /** Last upstream error (out-of-credits / bad key / rate-limit), shown in the chat; null when clear. */
   error: string | null;
-  /** Model-generated follow-up suggestions for the just-finished turn (zjni). */
+  /** Model-generated follow-up suggestions for the just-finished turn. */
   followups: string[];
   promptHistory: import("@renderer/lib/types").PromptHistoryEntry[];
   send: (text: string, model?: string) => void;
   cancel: () => void;
   clearHistory: () => void;
   newSession: () => void;
-  /** Branch the current thread into a new one seeded with its messages (dnx8.2). */
+  /** Branch the current thread into a new one seeded with its messages. */
   clone: () => Promise<void>;
   /** The current session/thread id (= useChat id = Mastra thread). */
   sessionId: string;
-  /** Open a persisted conversation by id, seeding the UI with its history (eh2g #3). */
+  /** Open a persisted conversation by id, seeding the UI with its history. */
   openThread: (threadId: string) => Promise<void>;
   undo: () => Promise<void>;
   clearResult: () => void;
@@ -71,7 +71,7 @@ export function useAEChat(): UseAEChatReturn {
   const [result, setResult] = useState<GenerationResult | null>(null);
   const [lastPrompt, setLastPrompt] = useState("");
   const [lastGenerationId, setLastGenerationId] = useState<string | null>(null);
-  // A gated tool paused mid-stream awaiting approval (xqc.1). Mirrored to a ref
+  // A gated tool paused mid-stream awaiting approval. Mirrored to a ref
   // so `send` reads the live value without being recreated each pause.
   const [awaitingApproval, setAwaitingApproval] = useState(false);
   const awaitingApprovalRef = useRef(false);
@@ -79,9 +79,9 @@ export function useAEChat(): UseAEChatReturn {
     awaitingApprovalRef.current = v;
     setAwaitingApproval(v);
   }, []);
-  // Last upstream LLM error, surfaced in the chat (was previously swallowed — c3s).
+  // Last upstream LLM error, surfaced in the chat (was previously swallowed).
   const [error, setError] = useState<string | null>(null);
-  // Dynamic follow-up suggestions for the last finished turn (zjni). A req-id
+  // Dynamic follow-up suggestions for the last finished turn. A req-id
   // guards against a stale response from a prior turn clobbering a newer one.
   const [followups, setFollowups] = useState<string[]>([]);
   const followupReq = useRef(0);
@@ -103,7 +103,7 @@ export function useAEChat(): UseAEChatReturn {
     [setAwaiting],
   );
 
-  // Main emits chat:done with the logged generation's id (zhk.9) so the UI can
+  // Main emits chat:done with the logged generation's id so the UI can
   // attach a thumbs up/down to that exact generation.
   useEffect(
     () => window.api.chat.onDone(({ generationId }) => setLastGenerationId(generationId)),
@@ -120,7 +120,7 @@ export function useAEChat(): UseAEChatReturn {
     [lastPrompt, updateHistoryResourceName],
   );
 
-  // Dynamic follow-up suggestions (zjni): once a turn finishes (a generation id
+  // Dynamic follow-up suggestions: once a turn finishes (a generation id
   // landed and we're idle), ask main to propose next-step prompts grounded in
   // what was just built. Best-effort — a failure just leaves no chips. New turns
   // clear `followups` (in send/newSession/openThread/clone) so stale chips never
@@ -147,7 +147,7 @@ export function useAEChat(): UseAEChatReturn {
       const trimmed = text.trim();
       if (!trimmed) return;
       // While a gated tool is paused, a typed reply is an approve/decline, not a
-      // new turn (xqc.1). Resolve via chat.approve and keep the run going. An
+      // new turn. Resolve via chat.approve and keep the run going. An
       // unrecognizable reply keeps the pause — the buttons remain the fallback.
       if (awaitingApprovalRef.current) {
         const intent = classifyApprovalIntent(trimmed);
@@ -177,7 +177,7 @@ export function useAEChat(): UseAEChatReturn {
         const body: { model?: string; accessToken?: string; workspaceId?: string } = {};
         if (model) body.model = model;
         if (accessToken) body.accessToken = accessToken;
-        // Active workspace scopes cloud chat memory to the tenant (M2.4).
+        // Active workspace scopes cloud chat memory to the tenant.
         if (workspaceId) body.workspaceId = workspaceId;
         void sendMessage({ text: trimmed }, Object.keys(body).length > 0 ? { body } : undefined);
       })();
@@ -204,7 +204,7 @@ export function useAEChat(): UseAEChatReturn {
     setFollowups([]);
   }, [setAwaiting]);
 
-  // Branch the current thread (dnx8.2): copy its messages into a new thread
+  // Branch the current thread: copy its messages into a new thread
   // server-side (so the agent keeps the prior context), then switch the UI to the
   // new thread seeded with the same visible messages. No-op while generating.
   const clone = useCallback(async () => {
@@ -231,7 +231,7 @@ export function useAEChat(): UseAEChatReturn {
     setSessionId(newId);
   }, [isGenerating, messages, sessionId, getToken, workspaceId, setAwaiting]);
 
-  // Open a persisted conversation (eh2g #3): load its messages from cloud memory
+  // Open a persisted conversation: load its messages from cloud memory
   // and switch the UI to that thread, seeded with its history. No-op while
   // generating or if it's already the active thread.
   const openThread = useCallback(

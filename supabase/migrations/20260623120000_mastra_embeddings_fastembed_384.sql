@@ -1,4 +1,4 @@
--- ── Semantic-recall embeddings → fastembed 384-dim (fivem-studio-1n47) ───────
+-- ── Semantic-recall embeddings → fastembed 384-dim ───────────────────────────
 -- Semantic recall switched from OpenAI text-embedding-3-small (1536) to local
 -- fastembed bge-small-en-v1.5 (384). The embedding column must match the new
 -- model's dimension, and a single HNSW index cannot hold mixed dimensions.

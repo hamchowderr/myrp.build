@@ -1,5 +1,5 @@
 /**
- * Native desktop features (fivem-studio-06k / -1gi / -wty).
+ * Native desktop features.
  *
  *  - crashReporter   — collect local minidumps for the crash-prone native surface
  *                      (D3D11 frame-capture, shared memory, koffi FFI, FXServer
@@ -76,7 +76,7 @@ export function notify(title: string, body: string, opts?: { onlyWhenUnfocused?:
     // / Focus Assist, or per-app / global notifications turned off). That only
     // surfaces on the async 'failed' event (HRESULT 0x803E0204), never as a
     // throw — log it so a missing toast is diagnosable from main.log instead of
-    // vanishing silently. (fivem-studio-wty)
+    // vanishing silently.
     n.on("failed", (_e, err) =>
       log.warn(`[native] notification refused by OS settings (${title}): ${err}`),
     );

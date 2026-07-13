@@ -1,4 +1,4 @@
--- ── Mastra semantic recall vector store (z8j8.4) ─────────────────────────────
+-- ── Mastra semantic recall vector store ─────────────────────────────
 -- Backs a custom SupabaseVector (extends @mastra/core MastraVector) so Mastra
 -- Memory's semantic recall works on cloud Supabase pgvector — same secure model
 -- as match_ox_corpus: RLS SELECT-only table, all writes + the similarity match

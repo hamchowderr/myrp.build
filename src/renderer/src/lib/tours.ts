@@ -1,6 +1,6 @@
 import type { Tour } from "@renderer/components/ui/tour";
 
-const TOUR_SEEN_KEY = "fivem-studio-tour-seen";
+const TOUR_SEEN_KEY = "myrp-build-tour-seen";
 
 export function hasSeenTour(tourId: string): boolean {
   try {

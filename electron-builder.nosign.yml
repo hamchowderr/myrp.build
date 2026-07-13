@@ -9,6 +9,11 @@ appId: com.otakusolutions.myrp-build
 productName: myRP.build
 directories:
   buildResources: build
+# Prune non-target native binaries (onnxruntime-node + koffi) — see the signed
+# config for the full why.
+afterPack: ./build/prune-native.cjs
+# Prefetch + bundle binary assets (fastembed bge-small + lua-language-server).
+beforePack: ./build/prefetch-bundled-assets.cjs
 electronFuses:
   runAsNode: false
   enableNodeOptionsEnvironmentVariable: false
@@ -30,13 +35,23 @@ files:
   - "!**/.vscode/*"
   - "!**/*.{log,txt}"
   - "!{.env,.env.*,.npmrc}"
+  # GTA map tiles excluded from the package — streamed from cloud Supabase Storage
+  # (see the signed config for the full why).
+  - "!out/renderer/assets/maps/**"
 asarUnpack:
   - "resources/**"
   - "skills/**"
   # onnxruntime-node native addon + its sibling DLLs must live on the real FS, not
   # inside app.asar, or fastembed's local embeddings fail to load (see the full why
-  # in electron-builder.yml). fivem-studio-s1f9.
+  # in electron-builder.yml).
   - "node_modules/onnxruntime-node/bin/**"
+# Bundled binary assets — see the signed config. fastembed bge-small +
+# lua-language-server.
+extraResources:
+  - from: build/fastembed-models
+    to: fastembed-models
+  - from: build/lua-language-server
+    to: lua-language-server
 win:
   executableName: myRP.build
   # NOTE: azureSignOptions intentionally omitted — see top-of-file.

@@ -1,0 +1,16 @@
+{
+  "fixtures": [
+    {
+      "match": { "userMessage": "ask me which framework", "hasToolResult": false },
+      "response": {
+        "toolCalls": [
+          { "name": "ask_user", "arguments": { "question": "Which framework — ox or qb?" } }
+        ]
+      }
+    },
+    {
+      "match": { "userMessage": "ask me which framework", "hasToolResult": true },
+      "response": { "content": "Great — using ox_core." }
+    }
+  ]
+}

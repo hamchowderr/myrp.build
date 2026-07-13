@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// fivem-studio-1yef.1: git-init a server folder + .gitignore + flag server.cfg
+// git-init a server folder + .gitignore + flag server.cfg
 // secrets. fs + git are mocked so the test is hermetic (no real repo / disk).
 
 const { access, readFile, writeFile, execFile } = vi.hoisted(() => ({
@@ -47,7 +47,7 @@ beforeEach(() => {
   readFile.mockRejectedValue(new Error("ENOENT")); // no server.cfg unless a test sets it
 });
 
-describe("scanServerCfgSecrets (1yef.1)", () => {
+describe("scanServerCfgSecrets", () => {
   it("flags named secret directives + generic set <name>(key|token|...), skips benign + comments", async () => {
     readFile.mockResolvedValueOnce(
       [
@@ -78,7 +78,7 @@ describe("scanServerCfgSecrets (1yef.1)", () => {
   });
 });
 
-describe("gitInitServer (1yef.1)", () => {
+describe("gitInitServer", () => {
   it("inits a fresh folder, writes .gitignore, reports no prior repo", async () => {
     access.mockRejectedValue(new Error("ENOENT")); // neither .git nor .gitignore exist
     const res = await gitInitServer("C:/srv");
@@ -119,7 +119,7 @@ describe("gitInitServer (1yef.1)", () => {
   });
 });
 
-describe("deriveRepoName (1yef.2)", () => {
+describe("deriveRepoName", () => {
   it("sanitizes a folder name to a valid GitHub repo name", () => {
     expect(deriveRepoName("C:/servers/My RP Server!")).toBe("My-RP-Server");
     expect(deriveRepoName("/home/me/fivem_core.dev")).toBe("fivem_core.dev");
@@ -129,7 +129,7 @@ describe("deriveRepoName (1yef.2)", () => {
   });
 });
 
-describe("getGithubLogin (1yef.2)", () => {
+describe("getGithubLogin", () => {
   it("returns the login on 200", async () => {
     const fetchMock = vi.fn().mockResolvedValue(ghResponse(200, { login: "octocat" }));
     vi.stubGlobal("fetch", fetchMock);
@@ -146,7 +146,7 @@ describe("getGithubLogin (1yef.2)", () => {
   });
 });
 
-describe("ensureGithubRepo (1yef.2)", () => {
+describe("ensureGithubRepo", () => {
   it("returns the existing repo when lookup succeeds (no create)", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       ghResponse(200, {
@@ -209,7 +209,7 @@ describe("ensureGithubRepo (1yef.2)", () => {
   });
 });
 
-describe("setGitRemote (1yef.2)", () => {
+describe("setGitRemote", () => {
   it("adds origin on a fresh repo", async () => {
     await setGitRemote("C:/srv", "https://github.com/me/repo.git");
     expect(execFile).toHaveBeenCalledWith(
@@ -235,7 +235,7 @@ describe("setGitRemote (1yef.2)", () => {
   });
 });
 
-describe("getGitRemoteUrl (1yef.3)", () => {
+describe("getGitRemoteUrl", () => {
   it("returns origin url, trimmed", async () => {
     execFile.mockImplementation(
       (_c: string, _a: string[], _o: unknown, cb: (e: unknown, r: unknown) => void) =>
@@ -251,7 +251,7 @@ describe("getGitRemoteUrl (1yef.3)", () => {
   });
 });
 
-describe("commitAndPushServer (1yef.3)", () => {
+describe("commitAndPushServer", () => {
   // Route each git subcommand to a scripted result. `status` controls whether
   // there's anything to commit; `pushErr` simulates a push failure.
   function wireGit({ status = "", pushErr = null as Error | null } = {}) {
@@ -327,7 +327,7 @@ describe("commitAndPushServer (1yef.3)", () => {
   });
 });
 
-describe("cloneServerRepo (1yef.4)", () => {
+describe("cloneServerRepo", () => {
   const opts = {
     token: "ghs_SECRET",
     remoteUrl: "https://github.com/octocat/srv.git",

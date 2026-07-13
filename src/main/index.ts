@@ -11,6 +11,7 @@ import { app, BrowserWindow, protocol } from "electron";
 import log from "electron-log/main";
 import { autoUpdater } from "electron-updater";
 import { registerAuthHandlers } from "./bootstrap/auth";
+import { seedFastembedModel } from "./bootstrap/fastembed-seed";
 import { wireRuntimeEvents } from "./bootstrap/runtime-wiring";
 import { createWindow, registerNavigationGuard } from "./bootstrap/window";
 import { registerBackupHandlers } from "./ipc/backup";
@@ -41,7 +42,7 @@ if (!app.isPackaged) {
   dotenv.config();
 }
 
-// Dev-mode bypass (fivem-studio-lwt): renderer skips the Clerk sign-in + Supabase
+// Dev-mode bypass: renderer skips the Discord sign-in + Supabase
 // usage path and runs on a direct ANTHROPIC_API_KEY when this is true.
 //
 // __DEV_BYPASS__ is a Vite-injected build-time literal (electron.vite.config.ts).
@@ -59,7 +60,7 @@ const DEV_BYPASS = __DEV_BYPASS__;
 // Belt-and-braces (defense-in-depth): a packaged build must NEVER honor a dev
 // bypass flag regardless of how it was set — env var, CLI argv, or an asar
 // repack injecting additionalArguments. The server-side proxy would reject the
-// resulting requests anyway (Clerk JWT required), so failing fast on launch is
+// resulting requests anyway (a valid session JWT is required), so failing fast on launch is
 // cleaner than half-mounting the UI with bad assumptions.
 if (app.isPackaged) {
   const tampered =
@@ -70,7 +71,7 @@ if (app.isPackaged) {
     process.exit(1);
   }
 
-  // Point the in-generation Lua syntax validator (fivem-studio-mxo) at the bundled
+  // Point the in-generation Lua syntax validator at the bundled
   // luacheck. In dev it resolves on PATH; a packaged build ships
   // resources/bin/luacheck.exe asar-UNPACKED (electron-builder.yml), and a spawn can
   // only exec a real file on disk — so use the unpacked copy. Falls back gracefully
@@ -84,6 +85,20 @@ if (app.isPackaged) {
   );
   if (existsSync(bundledLuacheck)) process.env.LUACHECK_PATH = bundledLuacheck;
 }
+
+// Resolve bundled lua-language-server and expose it via LUALS_PATH for the
+// Workspace LSP (mastra/workspace.ts) and the validator's `--check` gate
+// (mastra/tools/validator.ts). Packaged builds carry it as an extraResource under
+// <resources>/lua-language-server; dev uses the copy the prefetch script vendors under
+// <repo>/build/lua-language-server. Runs in BOTH modes (unlike luacheck, which resolves
+// on PATH in dev). Both consumers skip Lua LSP gracefully when it's unresolved.
+const lualsExe = process.platform === "win32" ? "lua-language-server.exe" : "lua-language-server";
+const lualsBin = [
+  process.env.LUALS_PATH,
+  join(process.resourcesPath, "lua-language-server", "bin", lualsExe),
+  join(app.getAppPath(), "build", "lua-language-server", "bin", lualsExe),
+].find((p) => p && existsSync(p));
+if (lualsBin) process.env.LUALS_PATH = lualsBin;
 
 // Dev-only: expose the renderer over the Chrome DevTools Protocol so a Playwright
 // harness can attach to the running, signed-in app (chromium.connectOverCDP).
@@ -104,7 +119,6 @@ setLogger(log);
 
 // Crash reporting for the native-heavy surface (D3D11 capture / koffi FFI /
 // FXServer child). Start before app `ready` so early crashes are captured.
-// (fivem-studio-06k)
 initCrashReporter();
 
 process.on("unhandledRejection", (reason) => {
@@ -115,7 +129,7 @@ process.on("unhandledRejection", (reason) => {
   });
 });
 
-// Single-instance lock (fivem-studio-dqh): a second instance would fight over the
+// Single-instance lock: a second instance would fight over the
 // resources/ folder, the FXServer, DB connections, and ports. Enforce only in
 // packaged builds — electron-vite's dev hot-reload restarts the main process, and
 // a lock would make the relaunched instance quit (looks like "won't start").
@@ -124,7 +138,7 @@ if (!gotSingleInstanceLock) {
   app.quit();
 }
 
-// Custom protocol scheme myrpbuild:// (fivem-studio-5np). Clerk rejects file://
+// Custom protocol scheme myrpbuild://. Supabase Auth rejects file://
 // in redirect_url server-side, so OAuth + email sign-up callbacks come back via
 // this scheme. registerSchemesAsPrivileged MUST run before app.whenReady so the
 // scheme has standard/secure/fetch privileges when the URL arrives.
@@ -147,12 +161,12 @@ if (process.defaultApp && process.argv.length >= 2) {
   app.setAsDefaultProtocolClient("myrpbuild");
 }
 
-// Discord sign-in loopback + encrypted auth store (fivem-studio-gvh). Registered
+// Discord sign-in loopback + encrypted auth store. Registered
 // at module load — same point as before — so the IPC handlers are ready as soon
 // as the renderer mounts. See src/main/bootstrap/auth.ts for the full rationale.
 registerAuthHandlers();
 
-// Security: restrict in-app navigation (Electron checklist #13, fivem-studio-o6r).
+// Security: restrict in-app navigation (Electron checklist #13).
 // See src/main/bootstrap/window.ts. Registered at module load to match prior
 // ordering (after the auth handlers, before any window is created).
 registerNavigationGuard();
@@ -168,7 +182,7 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window);
   });
 
-  // Focus the existing window when a second launch is attempted (dqh).
+  // Focus the existing window when a second launch is attempted.
   app.on("second-instance", () => {
     const w = state.mainWindow;
     if (w && !w.isDestroyed()) {
@@ -177,7 +191,7 @@ app.whenReady().then(() => {
     }
   });
 
-  // Auto-update (fivem-studio-ix5): check + notify on launch. Packaged only —
+  // Auto-update: check + notify on launch. Packaged only —
   // no-ops in dev, and requires signed releases published to the configured
   // GitHub provider (so this fully activates after code-signing lands, wew).
   //
@@ -200,6 +214,10 @@ app.whenReady().then(() => {
       log.info("[updater] app-update.yml missing — skipping update check (unpacked test build).");
     }
   }
+
+  // Seed the bundled fastembed bge-small weights into the model cache before any
+  // IPC handler can trigger an embedding. No-op in dev / when already cached.
+  seedFastembedModel();
 
   // Register all IPC handler groups
   registerSettingsHandlers();

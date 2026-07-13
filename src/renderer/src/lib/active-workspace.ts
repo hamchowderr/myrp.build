@@ -1,5 +1,5 @@
 /**
- * Pure active-workspace selection (teams epic 1gf, fivem-studio-nqy).
+ * Pure active-workspace selection (teams epic).
  *
  * Extracted from useWorkspaces so the selection rule is unit-testable without
  * React/Supabase. The active workspace is: the persisted pointer when the user is

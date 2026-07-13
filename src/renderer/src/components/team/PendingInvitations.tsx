@@ -1,5 +1,5 @@
 /**
- * Pending invitations surface (teams epic 1gf, fivem-studio-96l).
+ * Pending invitations surface (teams epic).
  *
  * On sign-in, polls get_my_pending_invitations (email-matched, RLS-scoped) and
  * shows a bell with a count badge when invites exist. Accept (accept_invitation)

@@ -6,7 +6,7 @@
  * before; call registerAuthHandlers() once during app startup.
  *
  * Discord sign-in via system browser + loopback (RFC 8252 native-app pattern),
- * native Supabase Auth + PKCE (fivem-studio-gvh).
+ * native Supabase Auth + PKCE.
  *
  * An Electron renderer can't host the provider redirect, so OAuth runs entirely
  * in the user's real system browser:
@@ -65,11 +65,11 @@ function stopSignInServer(): void {
   }
 }
 
-// Persistent, encrypted store backing the renderer's Supabase Auth client
-// (fivem-studio-gvh). The session + PKCE code_verifier are kept in a single JSON
+// Persistent, encrypted store backing the renderer's Supabase Auth client.
+// The session + PKCE code_verifier are kept in a single JSON
 // blob encrypted with Electron safeStorage (OS keychain/DPAPI) under userData, so
 // they survive reload, the >60s token refresh, and full app relaunch — the exact
-// persistence Clerk lacked here. If safeStorage has no backend (rare on Windows,
+// persistence the prior in-memory auth lacked here. If safeStorage has no backend (rare on Windows,
 // our target), we fall back to plaintext + a warning rather than losing auth.
 const AUTH_STORE_PATH = (): string => join(app.getPath("userData"), "auth-store.bin");
 let authStoreCache: Record<string, string> | null = null;
@@ -107,7 +107,7 @@ function saveAuthStore(store: Record<string, string>): void {
 
 // Main-process accessors for the SAME encrypted auth-store.bin used by the
 // renderer's Supabase session. Lets other main modules persist a secret without
-// a second keychain file — e.g. the GitHub backup token (fivem-studio-1yef.2),
+// a second keychain file — e.g. the GitHub backup token,
 // which must live in main (git push runs here) and must NEVER touch the database.
 export function getStoredSecret(key: string): string | null {
   return loadAuthStore()[key] ?? null;

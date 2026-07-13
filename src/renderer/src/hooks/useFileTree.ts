@@ -9,6 +9,8 @@ type ResourceFile = {
 
 export interface UseFileTreeReturn {
   serverResources: string[];
+  /** Names of resources that ship an NUI page (have an .html) — for the previewable badge. */
+  nuiResources: Set<string>;
   expandedResource: string | null;
   resourceFiles: Map<string, ResourceFile[]>;
   loadingResources: boolean;
@@ -33,6 +35,7 @@ export function useFileTree(
   onResourceDeleted?: (name: string) => void,
 ) {
   const [serverResources, setServerResources] = useState<string[]>([]);
+  const [nuiResources, setNuiResources] = useState<Set<string>>(new Set());
   const [expandedResource, setExpandedResource] = useState<string | null>(null);
   const [resourceFiles, setResourceFiles] = useState<Map<string, ResourceFile[]>>(new Map());
   const [loadingResources, setLoadingResources] = useState(false);
@@ -50,9 +53,11 @@ export function useFileTree(
     setLoadingResources(true);
     try {
       const resources = await window.api.listResources(localPath);
-      setServerResources(resources.sort());
+      setServerResources(resources.map((r) => r.name));
+      setNuiResources(new Set(resources.filter((r) => r.hasNui).map((r) => r.name)));
     } catch {
       setServerResources([]);
+      setNuiResources(new Set());
     } finally {
       setLoadingResources(false);
     }
@@ -84,7 +89,7 @@ export function useFileTree(
   );
 
   // Live per-resource control via txAdmin (restart_res / stop_res / start_res).
-  // Drives the same REST path as the server Restart button (fivem-studio-myn).
+  // Drives the same REST path as the server Restart button.
   const controlResource = useCallback(async (name: string, action: ResourceAction) => {
     setControlling({ name, action });
     setControlError(null);
@@ -177,6 +182,7 @@ export function useFileTree(
 
   return {
     serverResources,
+    nuiResources,
     expandedResource,
     resourceFiles,
     loadingResources,

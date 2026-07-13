@@ -1,4 +1,4 @@
-// E42 game-frame pipeline diagnostic (fivem-studio-uc3). Run with:
+// E42 game-frame pipeline diagnostic. Run with:
 //   npx electron scripts/gameframe-test.cjs
 // Exercises the ONLY Electron API in the game-view hot path —
 // nativeImage.createFromBitmap(BGRA) -> toJPEG -> base64 — to confirm it

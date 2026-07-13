@@ -1,6 +1,6 @@
 -- ── Clean baseline 01: extensions + RAG retrieval ───────────────────────────
--- myRP.build's Supabase schema, repaved into a clean by-concern baseline
--- (fivem-studio-bd2). Forward-only from here; never edit an applied migration.
+-- myRP.build's Supabase schema, repaved into a clean by-concern baseline.
+-- Forward-only from here; never edit an applied migration.
 --
 -- pgvector powers the ox_overextended RAG index. The `vector` extension brings
 -- ~118 functions + the vector/halfvec/sparsevec types into `public` automatically

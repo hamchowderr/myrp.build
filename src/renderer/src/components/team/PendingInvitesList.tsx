@@ -1,6 +1,6 @@
 /**
  * Owner's view of a workspace's outstanding (sent) invitations with revoke
- * (teams epic 1gf, fivem-studio-nev). Rows come from the RLS-readable
+ * (teams epic). Rows come from the RLS-readable
  * workspace_invitations table (owner-readable); revoke goes through revoke_invitation.
  */
 import { Badge } from "@renderer/components/ui/badge";

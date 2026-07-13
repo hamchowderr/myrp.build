@@ -1,4 +1,4 @@
--- ── Teams (fivem-studio-v05) — management RPCs ───────────────────────────────
+-- ── Teams — management RPCs ──────────────────────────────────────────────────
 -- All SECURITY DEFINER, identity via auth.uid()/auth.email() (the real caller, not
 -- the definer). Writes to teams tables happen ONLY here (RLS is SELECT-only), so
 -- authorization is enforced inside each function. No explicit grants — the public

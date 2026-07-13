@@ -1,5 +1,5 @@
 /**
- * Server lifecycle tools (fivem-studio-w2s) — let the agent START / STOP /
+ * Server lifecycle tools — let the agent START / STOP /
  * RESTART the local FXServer and report STATUS.
  *
  * This intentionally walks back principle #1 of the 2026-05-23 Agent Server

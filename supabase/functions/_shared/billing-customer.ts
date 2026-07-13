@@ -1,5 +1,5 @@
 // Shared "get a valid Stripe customer for a workspace" helper, with self-healing
-// for stale/deleted customer references (fivem-studio-cxd).
+// for stale/deleted customer references.
 //
 // billing_customers may hold a gateway_customer_id that no longer exists in the
 // ACTIVE Stripe account — e.g. after a test->live cutover or an account switch

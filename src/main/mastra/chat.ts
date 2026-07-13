@@ -1,5 +1,5 @@
 /**
- * Chat streaming entrypoint for the AI-Elements UI path (fivem-studio-k8v).
+ * Chat streaming entrypoint for the AI-Elements UI path.
  *
  * Unlike runGeneration (which maps Mastra chunks to our legacy StreamMessage
  * contract), this yields AI SDK **v6 UIMessage chunks** via @mastra/ai-sdk's
@@ -29,21 +29,21 @@ export interface RunChatStreamOptions {
   resourceId?: string;
   /**
    * Per-tenant Supabase chat Memory resolved in ipc/chat.ts from a per-run JWT
-   * (cloud in prod; local Supabase via the seeded dev JWT in dev-bypass — v1f9).
+   * (cloud in prod; local Supabase via the seeded dev JWT in dev-bypass).
    * Omitted only when memory can't be resolved → single-turn, no persistence.
    */
   memory?: import("@mastra/memory").Memory;
-  /** ox RAG snippets to inject (preserves the zhk retrieval). */
+  /** ox RAG snippets to inject (preserves the RAG retrieval). */
   ragContext?: string[];
   /** Absolute ox skill-folder paths to expose. */
   skillPaths?: string[];
-  /** RCON config for the approval-gated deploy_resource tool (445.2). */
+  /** RCON config for the approval-gated deploy_resource tool. */
   deployConfig?: import("./tools/deploy").DeployToolConfig;
-  /** Config for the approval-gated server lifecycle tools (fivem-studio-w2s). */
+  /** Config for the approval-gated server lifecycle tools. */
   serverConfig?: import("./tools/server-lifecycle").ServerLifecycleConfig;
-  /** Config for the approval-gated install_resource tool (fivem-studio-8m1). */
+  /** Config for the approval-gated install_resource tool. */
   installConfig?: import("./tools/install").InstallToolConfig;
-  /** Config for the approval-gated import_schema tool (fivem-studio-h5k). */
+  /** Config for the approval-gated import_schema tool. */
   importSchemaConfig?: import("./tools/import-schema").ImportSchemaToolConfig;
   /** Paths to auto-index for search (app passes [local] only). */
   indexPaths?: string[];
@@ -104,7 +104,7 @@ export async function runChatStream(
     // it silently no-op'd in packaged builds (no RAG_DATABASE_URL) → the
     // "No storage is configured" crash. InMemoryStore is @mastra/core's full
     // in-memory composite store (despite living in the "mock" module). Durable
-    // cloud chat MEMORY is a separate concern handled by M2/M3 (fivem-studio-smu).
+    // cloud chat MEMORY is a separate concern handled elsewhere.
     const needsApprovalStorage = Boolean(
       opts.requireApproval ||
         opts.deployConfig ||
@@ -125,7 +125,7 @@ export async function runChatStream(
               thread: opts.threadId,
               // resourceId always accompanies a resolved cloud memory; fall back
               // defensively to the single-user local id.
-              resource: opts.resourceId ?? "fivem-studio-local",
+              resource: opts.resourceId ?? "myrp-build-local",
             },
           }
         : {}),

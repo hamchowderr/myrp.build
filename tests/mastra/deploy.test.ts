@@ -52,7 +52,7 @@ function mockServer(): { http: Server; udp: dgram.Socket; commands: string[] } {
  * Bind the mock's TCP + UDP to the SAME free port (the deploy tool pings HTTP /info.json
  * and sends RCON over UDP on one port). `server.listen(0)` picks a free *TCP* port, but
  * that number can already be held on *UDP* by a parallel test file — the old code bound
- * UDP to it unconditionally and threw EADDRINUSE under concurrency (fivem-studio-46r).
+ * UDP to it unconditionally and threw EADDRINUSE under concurrency.
  * Retry on a fresh ephemeral port until both protocols bind.
  */
 async function bindMockOnFreePort(): Promise<{
@@ -122,7 +122,7 @@ describe("deploy_resource tool (445.2) — approval-gated ensure via RCON", () =
 
   beforeEach(async () => {
     // Set root FIRST so afterEach always has a path even if binding throws (the
-    // TypeError: rmSync(undefined) symptom of fivem-studio-46r).
+    // TypeError: rmSync(undefined) symptom).
     root = mkdtempSync(join(tmpdir(), "fivem-deploy-"));
     ({ server, udp, commands, port } = await bindMockOnFreePort());
   });

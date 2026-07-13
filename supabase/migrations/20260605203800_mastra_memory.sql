@@ -1,4 +1,4 @@
--- ── Mastra cloud chat memory (M2.1 — fivem-studio-hr4) ───────────────────────
+-- ── Mastra cloud chat memory ─────────────────────────────────────────────────
 -- Durable, per-tenant Mastra chat memory (threads + messages) in cloud Supabase.
 -- Mirrors the @mastra/pg memory domain shape (thread/message columns) but adds
 -- the multi-tenant convention from baseline 03: every row carries a
