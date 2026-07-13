@@ -1,13 +1,14 @@
 /**
- * IPC for the AI-Elements chat path. Bridges the renderer's
- * custom AI SDK ChatTransport to a main-process agent.stream():
+ * IPC for the generation chat path. Bridges the renderer to a main-process
+ * Mastra Harness turn:
  *
- *   renderer transport --chat:start--> here --runChatStream--> agent.stream()
- *      --toAISdkStream(v6)--> webContents.send("chat:chunk") --> transport
- *      reassembles a ReadableStream<UIMessageChunk> --> useChat + AI Elements.
+ *   renderer --chat:start--> here --> buildHarnessRuntime + sendHarnessTurn
+ *      --> webContents.send("harness:event") --> the renderer's harness hook
+ *      (reduceHarnessEvent) --> HarnessChat + AI Elements.
  *
  * Per-turn we send only the new user message; the Mastra memory thread (= the
- * useChat chatId) carries prior context server-side.
+ * chat id) carries prior context server-side. The legacy single-agent
+ * runChatStream path (agent.stream + chat:chunk transport) has been removed.
  */
 
 import { createHash } from "node:crypto";
@@ -21,7 +22,6 @@ import log from "electron-log/main";
 import { getActiveServer } from "../../renderer/src/lib/server-registry";
 import { resolveServerRconPassword } from "../context";
 import { rateGeneration } from "../generation-log";
-import { runChatStream } from "../mastra/chat";
 import {
   buildHarnessRuntime,
   disposeHarnessRuntime,
@@ -378,23 +378,12 @@ export function registerChatHandlers(): void {
       state.mastraThreadId = payload.chatId;
 
       // Track write_file tool calls so we can build a GenerationResult (file tree
-      // + undo) for the right panel + snapshot-before-overwrite. Shared with
-      // the Harness path via createWriteTracker. The legacy path feeds it
-      // from AI-SDK chunks; trackWrite extracts the path from the chunk shape.
+      // + undo) for the right panel + snapshot-before-overwrite. The Harness path
+      // feeds it by tapping `tool_start` write_file events (see forwardEvent).
       const tracker = createWriteTracker(server, resourcesRoot);
-      const trackWrite = (chunk: unknown): void => {
-        const c = chunk as { type?: string; toolName?: string; input?: { path?: string } };
-        if (
-          c.type === "tool-input-available" &&
-          c.toolName === WORKSPACE_TOOLS.FILESYSTEM.WRITE_FILE &&
-          typeof c.input?.path === "string"
-        ) {
-          tracker.trackPath(c.input.path);
-        }
-      };
 
       // Durable per-tenant cloud chat memory. Resolved from the JWT; falls
-      // back to undefined (→ runChatStream uses the local/no-cloud path) when
+      // back to undefined (→ the harness runs single-turn / no-cloud) when
       // cloud isn't configured/reachable. In dev-bypass there's no renderer JWT,
       // so sign in the seeded local dev user → SAME adapter path as prod.
       const accessToken =
@@ -440,16 +429,13 @@ export function registerChatHandlers(): void {
           state.cachedContext?.serverCfgPath,
         );
 
-        // Alpha: route this turn through the Mastra Harness instead of
-        // agent.stream()+toAISdkStream. Default-OFF — opt in via Settings
-        // (useHarness) or env MYRP_USE_HARNESS=1 for dev. The renderer's harness
-        // hook consumes `harness:event` (reduceHarnessEvent) rather than
-        // `chat:chunk`. Generated files reach the ArtifactPanel via the SAME
-        // finalizeGeneration as the legacy path — fed by tapping `tool_start`
-        // write_file events. Reuses the SAME `abort` controller, so the existing
-        // chat:cancel cancels this path too (→ session.abort()).
-        const useHarness = settings.useHarness === true || process.env.MYRP_USE_HARNESS === "1";
-        if (useHarness) {
+        // Generation runs EXCLUSIVELY through the Mastra Harness (supervisor +
+        // isolated specialist subagents + HITL). The legacy single-agent
+        // runChatStream path (agent.stream + manual approval loop, chat:chunk
+        // transport) has been removed. Generated files reach the ArtifactPanel
+        // via finalizeGeneration, fed by tapping `tool_start` write_file events;
+        // the SAME `abort` controller means chat:cancel cancels this too.
+        {
           const skillPaths = oxSkillPaths(
             join(app.isPackaged ? `${app.getAppPath()}.unpacked` : app.getAppPath(), "skills"),
           );
@@ -571,87 +557,6 @@ export function registerChatHandlers(): void {
           }
           return; // outer finally still runs (releaseAwake + mastraAbort cleanup)
         }
-
-        await runChatStream(chatPrompt, resourcesRoot, {
-          threadId: payload.chatId,
-          model,
-          proxyConfig,
-          ...(cloud ? { memory: cloud.memory, resourceId: cloud.resourceId } : {}),
-          ragContext,
-          // Skills live in the tracked root skills/ dir. asarUnpack puts them at
-          // app.asar.unpacked/skills in packaged builds, but app.getAppPath()
-          // returns the app.asar path — reading skills/ THROUGH the asar yields an
-          // empty registry ("Skill 'x' not found. Available skills:"), so resolve
-          // the .unpacked sibling when packaged. Dev (unpackaged) uses the repo root.
-          skillPaths: oxSkillPaths(
-            join(app.isPackaged ? `${app.getAppPath()}.unpacked` : app.getAppPath(), "skills"),
-          ),
-          indexPaths: [server.localPath],
-          // Approval-gated deploy_resource: ensure built resources on the
-          // running server via RCON. Always pauses for approval; no-ops if offline.
-          deployConfig: {
-            port: server.serverPort ?? 30120,
-            rconPassword,
-          },
-          // Approval-gated server lifecycle: the agent can
-          // start/stop/restart the local FXServer (each pauses for approval) and
-          // check status (read-only). Amends the 2026-05-23 contract.
-          serverConfig: {
-            port: server.serverPort ?? 30120,
-          },
-          // Approval-gated install_resource: install a missing ox
-          // dependency (download release -> resources/[ox] -> ensure).
-          installConfig: {
-            resourcesRoot,
-            port: server.serverPort ?? 30120,
-            rconPassword,
-          },
-          // Approval-gated import_schema: run a resource's
-          // sql/install.sql against the server DB (connection string read from
-          // server.cfg) so the agent finishes setup instead of telling the user
-          // to import by hand. Only when we know where server.cfg is.
-          ...(state.cachedContext?.serverCfgPath
-            ? {
-                importSchemaConfig: {
-                  localPath: server.localPath,
-                  serverCfgPath: state.cachedContext.serverCfgPath,
-                },
-              }
-            : {}),
-          abortSignal: abort.signal,
-          requireApproval: settings.requireApproval ?? true,
-          // Surface the pause to the renderer (the tool part already streamed
-          // shows "Awaiting Approval") and wait for chat:approve to resolve.
-          awaitApproval: (runId) =>
-            new Promise<boolean>((resolve) => {
-              state.pendingApproval = resolve;
-              send("chat:approval_pending", { runId });
-            }),
-          onChunk: (chunk) => {
-            trackWrite(chunk);
-            send("chat:chunk", chunk);
-          },
-        });
-        // Assemble the manifest + file list (chat:result), auto-ensure, backup,
-        // and log — shared with the Harness path.
-        const { generationId, resourceName } = await finalizeGeneration({
-          server,
-          resourcesRoot,
-          writtenAbs: tracker.writtenAbs,
-          backupPath: tracker.backupPath,
-          serverCfgPath: state.cachedContext?.serverCfgPath,
-          prompt: payload.text,
-          model,
-          ragContext,
-          threadId: payload.chatId,
-          send,
-        });
-        send("chat:done", { generationId });
-        notify(
-          "myRP.build",
-          resourceName ? `Resource "${resourceName}" generated` : "Generation complete",
-          { onlyWhenUnfocused: true },
-        );
       } catch (err) {
         log.error("[chat] stream failed:", err);
         send("chat:error", friendlyLlmError(err instanceof Error ? err.message : String(err)));
@@ -688,13 +593,11 @@ export function registerChatHandlers(): void {
     resolve?.(approved);
   });
 
-  // Whether the Harness chat path is active. Single source of truth for the
-  // default-OFF flag so the renderer drives the matching hook/channel
-  // (harness:event vs chat:chunk) instead of guessing. Settings or env (dev).
-  ipcMain.handle(
-    "harness:isEnabled",
-    async () => (await readSettings()).useHarness === true || process.env.MYRP_USE_HARNESS === "1",
-  );
+  // The Harness is the ONLY generation path now; the renderer always drives the
+  // harness hook/channel (harness:event). Retained so the renderer's one-time
+  // probe resolves without special-casing; removed when the renderer drops the
+  // last isEnabled() call.
+  ipcMain.handle("harness:isEnabled", () => true);
 
   // Harness path approval (the policy layer owns the category policy): answer the parked
   // tool-approval gate on the live session. No-op when nothing is awaiting
