@@ -148,6 +148,15 @@ function CreateNew({ settings }: { settings: AppSettings }) {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Pre-fill the location with the folder that already holds the user's servers,
+  // so a new server lands alongside the existing ones and you only type a name.
+  // Browse still overrides. Null (first run, no server yet) keeps the Browse prompt.
+  useEffect(() => {
+    window.api.defaultServerParentDir().then((dir) => {
+      if (dir) setParentDir((cur) => cur ?? dir);
+    });
+  }, []);
+
   async function pickLocation() {
     const dir = await window.api.selectFolder();
     if (dir) setParentDir(dir);

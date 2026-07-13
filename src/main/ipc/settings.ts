@@ -3,6 +3,7 @@
  */
 
 import { mkdir, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 import { app, dialog, ipcMain } from "electron";
 import type { AppSettings } from "../../renderer/src/lib/types";
 import { type ScaffoldResult, scaffoldServer } from "../scaffold";
@@ -51,4 +52,17 @@ export function registerSettingsHandlers(): void {
       }
     },
   );
+
+  // Default parent folder for a NEW server: the directory that already holds the
+  // user's servers (the active one, else the first registered) so new servers
+  // ALWAYS land alongside the existing ones — never elsewhere. The Create-new
+  // dialog pre-fills this so you only type a name (Browse still overrides).
+  // Returns null only on first run (no server registered yet) → the dialog keeps
+  // requiring a Browse in that one case.
+  ipcMain.handle("servers:defaultParentDir", async (): Promise<string | null> => {
+    const settings = await readSettings();
+    const active =
+      settings.servers.find((s) => s.id === settings.activeServerId) ?? settings.servers[0];
+    return active ? dirname(active.serverPath) : null;
+  });
 }

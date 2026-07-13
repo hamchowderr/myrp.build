@@ -14,6 +14,7 @@ interface Window {
       parentDir: string,
       name: string,
     ) => Promise<import("./lib/types").ScaffoldResult | { error: string }>;
+    defaultServerParentDir: () => Promise<string | null>;
     findServerPaths: () => Promise<string[]>;
     findServerExe: (serverPath: string) => Promise<string | null>;
     detectContext: (

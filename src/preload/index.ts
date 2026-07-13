@@ -33,6 +33,9 @@ const api = {
   loadSettings: (): Promise<AppSettings | null> => ipcRenderer.invoke("settings:load"),
   scaffoldServer: (parentDir: string, name: string): Promise<ScaffoldResult | { error: string }> =>
     ipcRenderer.invoke("servers:scaffold", parentDir, name),
+  // Default parent folder for a new server (parent of the existing servers).
+  defaultServerParentDir: (): Promise<string | null> =>
+    ipcRenderer.invoke("servers:defaultParentDir"),
 
   // Server context
   findServerPaths: (): Promise<string[]> => ipcRenderer.invoke("context:findServers"),

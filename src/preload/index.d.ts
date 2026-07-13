@@ -25,6 +25,7 @@ interface MyRPBuildAPI {
     parentDir: string,
     name: string,
   ) => Promise<ScaffoldResult | { error: string }>;
+  defaultServerParentDir: () => Promise<string | null>;
   findServerPaths: () => Promise<string[]>;
   findServerExe: (serverPath: string) => Promise<string | null>;
   detectContext: (serverPath: string) => Promise<ServerContext>;
