@@ -23,6 +23,7 @@
 import { Agent } from "@mastra/core/agent";
 import type { AgentControllerSubagent } from "@mastra/core/agent-controller";
 import { type AnyWorkspace, WORKSPACE_TOOLS } from "@mastra/core/workspace";
+import { GROUND_RULES } from "./ground-rules";
 
 const HAIKU = "anthropic/claude-haiku-4-5";
 const SONNET = "anthropic/claude-sonnet-4-5";
@@ -56,6 +57,27 @@ interface SpecialistSpec {
   allowedWorkspaceTools: string[];
   /** Legacy builder only: attach the shared workspace? (text-only lore = no.) */
   usesWorkspace: boolean;
+}
+
+/**
+ * Specialists that WRITE or CHECK ox code get the shared GROUND_RULES appended
+ * to their instructions, so they enforce the product invariants directly — not
+ * just the supervisor (fixed the bug where lua-specialist ACE-gated a command +
+ * told the user to edit server.cfg). Recon/naming/docs specialists don't touch
+ * ox code, so they stay lean.
+ */
+const ENFORCES_GROUND_RULES = new Set([
+  "lua-specialist",
+  "nui-specialist",
+  "validator",
+  "security-auditor",
+]);
+
+/** A specialist's instructions, with the shared ground rules appended when it writes/checks code. */
+function withGroundRules(spec: SpecialistSpec): string {
+  return ENFORCES_GROUND_RULES.has(spec.id)
+    ? `${spec.instructions}\n\nABSOLUTE RULES — never violate regardless of the task:\n${GROUND_RULES}`
+    : spec.instructions;
 }
 
 const SPECIALISTS: SpecialistSpec[] = [
@@ -155,7 +177,7 @@ export function createSubAgentDefs(): AgentControllerSubagent[] {
     id: s.id,
     name: s.name,
     description: s.description,
-    instructions: s.instructions,
+    instructions: withGroundRules(s),
     defaultModelId: s.model,
     allowedWorkspaceTools: s.allowedWorkspaceTools,
     forked: false,
@@ -175,7 +197,7 @@ export function createSubAgents(workspace: AnyWorkspace): Record<string, Agent> 
       id: s.id,
       name: s.name,
       description: s.description,
-      instructions: s.instructions,
+      instructions: withGroundRules(s),
       model: s.model,
       ...(s.usesWorkspace ? { workspace } : {}),
     });
