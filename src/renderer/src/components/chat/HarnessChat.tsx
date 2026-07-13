@@ -109,6 +109,11 @@ interface HarnessChatProps {
   onToggleTheme: () => void;
 }
 
+/** Narrow an unknown value to a plain record for safe field access. */
+function asRecord(v: unknown): Record<string, unknown> | undefined {
+  return v && typeof v === "object" ? (v as Record<string, unknown>) : undefined;
+}
+
 /** Render one Harness content part, pairing tool_call → its tool_result by id. */
 function renderContent(
   part: HarnessContentPart,
@@ -138,6 +143,12 @@ function renderContent(
     const hasOutput = result !== undefined;
     const out = result?.result;
     const outText = typeof out === "string" ? out : JSON.stringify(out, null, 2);
+    // Subagent delegations read best as prose: the header already names the
+    // specialist, so show the plain `task` it was given + the `content` it
+    // returned, instead of dumping the raw {agentType,task}/{content} JSON.
+    const sub = call.name === "subagent" ? asRecord(call.args) : undefined;
+    const subTask = typeof sub?.task === "string" ? sub.task : undefined;
+    const subResult = hasOutput ? asRecord(out)?.content : undefined;
     return (
       <Tool key={i}>
         <ToolHeader
@@ -146,12 +157,29 @@ function renderContent(
           title={toolLabel(`tool-${call.name}`, call.args)}
         />
         <ToolContent>
-          <ToolInput input={call.args} />
-          {hasOutput && (
-            <ToolOutput
-              output={result?.isError ? undefined : outText}
-              errorText={result?.isError ? outText : undefined}
-            />
+          {subTask !== undefined ? (
+            <div className="space-y-2 p-3 text-xs leading-relaxed">
+              <p className="whitespace-pre-wrap">
+                <span className="text-muted-foreground">Task — </span>
+                {subTask}
+              </p>
+              {typeof subResult === "string" && subResult && (
+                <div className="border-border/60 border-t pt-2">
+                  <p className="mb-1 text-muted-foreground">Result</p>
+                  <MessageResponse>{subResult}</MessageResponse>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <ToolInput input={call.args} />
+              {hasOutput && (
+                <ToolOutput
+                  output={result?.isError ? undefined : outText}
+                  errorText={result?.isError ? outText : undefined}
+                />
+              )}
+            </>
           )}
         </ToolContent>
       </Tool>
