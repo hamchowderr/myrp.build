@@ -233,8 +233,9 @@ app.whenReady().then(() => {
   createWindow(DEV_BYPASS);
   gameViewManager.setWindow(state.mainWindow!);
 
-  // Generation runs on the embedded Mastra agent via ipc/chat.ts (AI SDK v6
-  // UIMessage stream). The Agent-SDK worker, QMD, MCP, and batch paths are gone.
+  // Generation runs on the embedded Mastra agent via ipc/chat.ts (AI SDK v7;
+  // Mastra bridges the stream in v6 UIMessage format). The Agent-SDK worker,
+  // QMD, MCP, and batch paths are gone.
 
   // Wire orchestrator (game view) + FxDK session events to the renderer and the
   // powerSaveBlocker / notification side-effects. See bootstrap/runtime-wiring.ts.

@@ -1,10 +1,10 @@
-// E42 game-frame pipeline diagnostic. Run with:
+// E43 game-frame pipeline diagnostic. Run with:
 //   npx electron scripts/gameframe-test.cjs
 // Exercises the ONLY Electron API in the game-view hot path —
 // nativeImage.createFromBitmap(BGRA) -> toJPEG -> base64 — to confirm it
-// still works on Electron 42 without needing a live FiveM game. The koffi
+// still works on Electron 43 without needing a live FiveM game. The koffi
 // D3D11 capture and the renderer <img> display are not Electron-version
-// sensitive (Windows API + plain HTML), so this covers the E42 surface.
+// sensitive (Windows API + plain HTML), so this covers the E43 surface.
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");

@@ -1,5 +1,5 @@
 /**
- * Custom AI SDK v6 ChatTransport that bridges useChat to the Electron main
+ * Custom AI SDK v7 ChatTransport that bridges useChat to the Electron main
  * process over IPC. Non-HTTP transports are a first-class
  * AI SDK extension point — see ChatTransport docs.
  *

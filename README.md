@@ -312,12 +312,12 @@ tests/
 | Layer | Technology |
 |---|---|
 | Agent framework | [Mastra](https://mastra.ai/) — `@mastra/core` (Agent + Workspace + Harness), `@mastra/memory`, `@mastra/pg`, `@mastra/fastembed` |
-| Inference | [Vercel AI SDK v6](https://sdk.vercel.ai/) → the [Vercel AI Gateway](https://vercel.com/ai-gateway) — one key, 280+ models across 29 providers |
+| Inference | [Vercel AI SDK v7](https://sdk.vercel.ai/) → the [Vercel AI Gateway](https://vercel.com/ai-gateway) — one key, 280+ models across 29 providers |
 | LLM | Provider-agnostic — [Anthropic Claude](https://www.anthropic.com/), OpenAI, Google, Groq, local [Ollama](https://ollama.com/) — chosen with `MASTRA_MODEL` |
 | Embeddings | [fastembed](https://github.com/qdrant/fastembed) — local ONNX `bge-small` (384-d), bundled & pre-seeded; no embedding API |
 | Lua tooling | Bundled [lua-language-server](https://github.com/LuaLS/lua-language-server) (LSP + `--check`) + [luacheck](https://github.com/lunarmodules/luacheck) |
 | Knowledge | Agent Skills (`SKILL.md`, loaded on demand) + a [pgvector](https://github.com/pgvector/pgvector) RAG index of the ox source |
-| Desktop shell | [Electron](https://www.electronjs.org/) 42 + [electron-vite](https://electron-vite.org/) — main / preload / renderer |
+| Desktop shell | [Electron](https://www.electronjs.org/) 43 + [electron-vite](https://electron-vite.org/) — main / preload / renderer |
 | Frontend | [React](https://react.dev/) 19, [Tailwind](https://tailwindcss.com/) v4, [shadcn/ui](https://ui.shadcn.com/) |
 | Win32 integration | [koffi](https://github.com/Koromix/koffi) FFI — shared memory, named pipes, D3D11 frame capture |
 | Database | Postgres + [pgvector](https://github.com/pgvector/pgvector) via [Supabase](https://supabase.com/) — local [CLI](https://supabase.com/docs/guides/cli); cloud for managed |

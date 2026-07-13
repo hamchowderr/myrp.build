@@ -2,10 +2,13 @@
  * Chat streaming entrypoint for the AI-Elements UI path.
  *
  * Unlike runGeneration (which maps Mastra chunks to our legacy StreamMessage
- * contract), this yields AI SDK **v6 UIMessage chunks** via @mastra/ai-sdk's
- * toAISdkStream — so the renderer can drive `useChat` + AI Elements with zero
- * hand-rolled stream mapping. Chunks are forwarded to the renderer over IPC and
- * reassembled into a ReadableStream by the custom ChatTransport.
+ * contract), this yields UIMessage chunks in @mastra/ai-sdk's **v6 stream
+ * format** (`version: "v6"`) via toAISdkStream — wire-compatible with the
+ * renderer's AI SDK **v7** `useChat`. (@mastra/ai-sdk tops out at v6; the v6 UI
+ * message-stream protocol is a subset of v7's, so keep "v6" — don't "upgrade"
+ * it.) The renderer drives `useChat` + AI Elements with zero hand-rolled stream
+ * mapping. Chunks are forwarded to the renderer over IPC and reassembled into a
+ * ReadableStream by the custom ChatTransport.
  *
  * Memory: the chat session's `threadId` (= useChat chatId) is the Mastra memory
  * thread, so follow-ups carry context server-side and we only send the new turn.
@@ -57,12 +60,12 @@ export interface RunChatStreamOptions {
    * is on and the agent actually calls a gated tool.
    */
   awaitApproval?: (runId: string) => Promise<boolean>;
-  /** Receives each AI SDK v6 UIMessage chunk as it streams. */
+  /** Receives each UIMessage chunk (v6 stream format) as it streams. */
   onChunk: (chunk: unknown) => void;
 }
 
 /**
- * Run one chat turn and stream AI SDK v6 UIMessage chunks via `onChunk`.
+ * Run one chat turn and stream UIMessage chunks (v6 stream format) via `onChunk`.
  *
  * @param prompt        the user's new message (memory carries prior turns)
  * @param resourcesRoot the server's resources/ directory (workspace basePath)
@@ -140,6 +143,8 @@ export async function runChatStream(
       let pausedRunId: string | undefined;
       const uiStream = toAISdkStream(output, {
         from: "agent",
+        // v6 UI-stream format — @mastra/ai-sdk's newest; wire-compatible with
+        // the renderer's AI SDK v7 useChat. Don't bump to "v7" (unsupported).
         version: "v6",
         sendReasoning: true,
       });
