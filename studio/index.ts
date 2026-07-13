@@ -20,14 +20,16 @@
 // `mastra_studio` schema so it never touches the app's RLS-managed mastra_*
 // tables (owned by the cloud SupabaseMemoryStorage adapter + SECURITY DEFINER
 // RPCs). Requires `supabase start` (the local stack running).
-import { join } from "node:path";
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Mastra } from "@mastra/core";
 import { Agent } from "@mastra/core/agent";
 import { MastraEditor } from "@mastra/editor";
 import { Memory } from "@mastra/memory";
 import { MastraStorageExporter, Observability } from "@mastra/observability";
-import { PostgresStore } from "@mastra/pg";
-import { FIVEM_INSTRUCTIONS } from "../src/main/mastra/prompt";
+import { PostgresStoreVNext } from "@mastra/pg";
+import { buildFiveMAgentConfig } from "../src/main/mastra/agent-config";
 import { createAndInitWorkspace, oxSkillPaths } from "../src/main/mastra/workspace";
 import { studioScorerRegistry, studioScorers } from "./scorers";
 
@@ -37,11 +39,30 @@ const root =
   process.env.STUDIO_RESOURCES_ROOT ??
   "C:/FXServer/txData/FiveMBasicServerCFXDefault_B89B02.base/resources";
 
-// ox skills (ox-only allowlist) from the tracked root skills/ dir. In the app
-// these resolve under app.getAppPath(); outside Electron, off the project root
-// (mastra dev runs from there). Wiring them makes Studio's workspace faithful —
-// the agent can load the same ox knowledge it uses in-app.
-const skillsRoot = process.env.STUDIO_SKILLS_ROOT ?? join(process.cwd(), "skills");
+// ox skills (ox-only allowlist) from the tracked root skills/ dir.
+//
+// PATH TRAP (verified): `mastra dev --dir studio` BUNDLES this file to
+// <repo>/.mastra/output/index.mjs and runs it FROM THERE, so BOTH
+// process.cwd()-relative AND import.meta.url-relative "../skills" resolve to
+// nonexistent dirs (.mastra/skills) and the workspace silently loads ZERO
+// skills. The robust fix is to WALK UP from the module location until we hit
+// the ancestor that actually contains skills/ (repo root) — works whether
+// bundled (.mastra/output → .mastra → repo) or run in place.
+function findSkillsRoot(): string {
+  if (process.env.STUDIO_SKILLS_ROOT) return process.env.STUDIO_SKILLS_ROOT;
+  let dir = dirname(fileURLToPath(import.meta.url));
+  for (let i = 0; i < 8; i++) {
+    const candidate = join(dir, "skills");
+    // fw-ox-core is a canonical ox skill folder — its presence identifies the
+    // real skills/ dir (not some unrelated "skills" folder up the tree).
+    if (existsSync(join(candidate, "fw-ox-core", "SKILL.md"))) return candidate;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return join(process.cwd(), "skills"); // last-resort fallback
+}
+const skillsRoot = findSkillsRoot();
 
 const workspace = await createAndInitWorkspace(root, {
   indexPaths: [],
@@ -49,9 +70,24 @@ const workspace = await createAndInitWorkspace(root, {
 });
 
 // Local Supabase Postgres (same stack as the app), isolated in mastra_studio.
+//
+// PostgresStoreVNext (not the plain PostgresStore): it composes the primary
+// store (memory / workflows / scores) with the v-next observability domain,
+// which is the ONLY Postgres path that implements metrics + logs + traces.
+// The plain PostgresStore inherits @mastra/core's base observability, whose
+// getMetric*/logs methods THROW ("does not support metric aggregation") — that
+// was the source of Studio's "Metrics/Logs not available with your current
+// storage" errors. `observability` is required; for local dev we point it at
+// the SAME Postgres (a dedicated instance only matters at production volume —
+// PostgresStoreVNext logs a one-time collision warning, which is expected here).
 const connectionString = process.env.RAG_DATABASE_URL;
 const store = connectionString
-  ? new PostgresStore({ id: "studio", connectionString, schemaName: "mastra_studio" })
+  ? new PostgresStoreVNext({
+      id: "studio",
+      connectionString,
+      schemaName: "mastra_studio",
+      observability: { connectionString, schemaName: "mastra_studio" },
+    })
   : undefined;
 
 if (!store) {
@@ -63,18 +99,18 @@ if (!store) {
 
 const memory = store ? new Memory({ storage: store, options: { lastMessages: 20 } }) : undefined;
 
+// Build the generator from the SHARED, Electron-free core (buildFiveMAgentConfig)
+// — the SAME config the app's createFiveMAgent uses: model resolution (Vercel AI
+// Gateway via VERCEL_GATEWAY_KEY, so Studio no longer needs a bare ANTHROPIC_API_KEY),
+// system prompt + ox RAG, TokenLimiter input processor, maxSteps, sub-agents. This
+// is what makes Studio FAITHFUL — a processor/setting added to the app shows up here
+// automatically instead of drifting. The only thing Studio omits is the native,
+// Electron/FFI-bound tools (deploy/server-lifecycle/…), which it can't run anyway.
 const generator = new Agent({
-  id: "fivem-generator",
-  name: "myRP.build Generator (workspace)",
-  description:
-    "FiveM ox_overextended resource generator — workspace tools only (deploy/server-lifecycle are injected only in the app).",
-  instructions: FIVEM_INSTRUCTIONS,
-  model: process.env.MASTRA_MODEL ?? "anthropic/claude-sonnet-4-6",
-  workspace,
+  ...buildFiveMAgentConfig(workspace, { ...(memory ? { memory } : {}) }),
   // Quality scorers (studio/scorers/) — show up in Studio's Evaluate tab and
   // run live on each generation: fxmanifest-present, luacheck-pass, ox-only.
   scorers: studioScorers,
-  ...(memory ? { memory } : {}),
 });
 
 // Observability / AI tracing (@mastra/observability). MastraStorageExporter
