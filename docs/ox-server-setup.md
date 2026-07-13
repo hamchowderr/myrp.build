@@ -75,12 +75,14 @@ ensure ox_core
 
 ## ox suite (added 2026-05-26)
 
-The Overextended ox suite on top of the core. Verified-loading versions + deps:
+The Overextended ox suite on top of the core. Verified-loading versions + deps
+(versions re-checked against upstream releases 2026-07-13 — only ox_inventory
+moved since the 2026-05-26 load test, a patch bump):
 
 | Resource | Ver | Depends on | SQL |
 |---|---|---|---|
 | ox_target | 1.18.1 | ox_lib | none |
-| ox_inventory | 2.47.8 | oxmysql, ox_lib, onesync | none (uses ox_core's `character_inventory`/`ox_inventory` tables) |
+| ox_inventory | 2.47.9 | oxmysql, ox_lib, onesync | none (uses ox_core's `character_inventory`/`ox_inventory` tables) |
 | ox_banking | 1.0.6 | ox_core, ox_lib, oxmysql, **ox_inventory** | none (uses ox_core `accounts*`) |
 | ox_commands | main | ox_lib | none |
 | ox_doorlock | 1.22.1 | oxmysql, ox_lib | **`sql/ox_doorlock.sql`** (schema; `default.sql`/`community_mrpd.sql` are optional sample doors) |
