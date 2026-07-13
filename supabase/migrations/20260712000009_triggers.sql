@@ -1,4 +1,4 @@
--- ── Clean baseline 06: triggers ──────────────────────────────────────────────
+-- ── Consolidated baseline 06: triggers ───────────────────────────────────────
 -- Auto-provision on Supabase Auth signup. This trigger lives on auth.users, which
 -- is OUTSIDE the `--schema public` drift-check — verify it explicitly after a
 -- repave:  select tgname from pg_trigger

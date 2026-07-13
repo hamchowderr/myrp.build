@@ -1,17 +1,7 @@
--- ── Mastra cloud chat memory write RPCs ──────────────────────────────────────
--- All SECURITY DEFINER, set search_path = public. The mastra_threads /
--- mastra_messages tables are RLS SELECT-only (M2.1), so EVERY write happens here
--- and authorization is enforced INSIDE each function:
---   • re-check public.is_workspace_member(workspace_id) (the real caller via
---     auth.uid(), not the definer),
---   • identity (author_id/author_email) is stamped from auth.uid()/auth.email()
---     for user-role messages — any client-supplied author is IGNORED,
---   • resource_id/server_id/workspace_id come from the validated thread, not from
---     forged per-message args.
--- No explicit grants: the public schema's default privileges grant EXECUTE to
--- anon/authenticated/service_role.
+-- ── Consolidated baseline 04c: Mastra chat memory RPCs (threads/messages/resources) ──
+set check_function_bodies = off;
 
--- ── thread writes ────────────────────────────────────────────────────────────
+-- ── Mastra cloud chat memory: thread writes ──────────────────────────────────
 
 -- Upsert a thread. Caller must be a member of p_workspace_id.
 create or replace function public.mastra_save_thread(
@@ -69,7 +59,7 @@ begin
   delete from mastra_threads where id = p_thread_id;
 end; $$;
 
--- ── message writes ───────────────────────────────────────────────────────────
+-- ── Mastra cloud chat memory: message writes ─────────────────────────────────
 
 -- Bulk upsert messages. p_messages is a JSON array of objects, each:
 --   { id, threadId, role, type?, content (jsonb), resourceId? }
@@ -192,4 +182,74 @@ begin
   if array_length(v_threads, 1) is not null then
     update mastra_threads set updated_at = now() where id = any(v_threads);
   end if;
+end; $$;
+
+-- Delete messages by id. Authorize against every target message's workspace,
+-- delete, then bump the affected threads' updated_at. Idempotent (unknown ids
+-- are simply not found).
+create or replace function public.mastra_delete_messages(p_message_ids text[])
+returns void language plpgsql security definer set search_path = public as $$
+declare v_threads text[];
+begin
+  if p_message_ids is null or array_length(p_message_ids, 1) is null then return; end if;
+
+  -- Reject if ANY target message belongs to a workspace the caller isn't in.
+  if exists (
+    select 1 from mastra_messages
+    where id = any(p_message_ids) and not public.is_workspace_member(workspace_id)
+  ) then
+    raise exception 'not a member of this workspace';
+  end if;
+
+  select array_agg(distinct thread_id) into v_threads
+    from mastra_messages where id = any(p_message_ids);
+
+  delete from mastra_messages where id = any(p_message_ids);
+
+  if v_threads is not null then
+    update mastra_threads set updated_at = now() where id = any(v_threads);
+  end if;
+end; $$;
+
+-- ── Mastra cloud chat memory: resource writes ────────────────────────────────
+
+-- Upsert a resource. workspace_id comes from the caller's validated scope (the
+-- adapter passes ctx.workspaceId); membership is re-checked.
+create or replace function public.mastra_save_resource(
+  p_id             text,
+  p_workspace_id   uuid,
+  p_working_memory text default null,
+  p_metadata       jsonb default null
+) returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_workspace_member(p_workspace_id) then
+    raise exception 'not a member of this workspace';
+  end if;
+  insert into mastra_resources (id, workspace_id, working_memory, metadata, created_at, updated_at)
+    values (p_id, p_workspace_id, p_working_memory, p_metadata, now(), now())
+  on conflict (id) do update set
+    -- workspace_id is immutable on conflict (a resource can't change tenants).
+    working_memory = excluded.working_memory,
+    metadata       = excluded.metadata,
+    updated_at     = now()
+  where public.is_workspace_member(mastra_resources.workspace_id);
+end; $$;
+
+-- Partial-update a resource's working_memory/metadata (metadata merged).
+-- Membership re-checked against the existing row's workspace.
+create or replace function public.mastra_update_resource(
+  p_id             text,
+  p_working_memory text default null,
+  p_metadata       jsonb default null
+) returns void language plpgsql security definer set search_path = public as $$
+declare v_ws uuid; v_meta jsonb;
+begin
+  select workspace_id, metadata into v_ws, v_meta from mastra_resources where id = p_id;
+  if v_ws is null then raise exception 'resource % not found', p_id; end if;
+  if not public.is_workspace_member(v_ws) then raise exception 'not a member of this workspace'; end if;
+  update mastra_resources set
+    working_memory = coalesce(p_working_memory, working_memory),
+    metadata       = coalesce(v_meta, '{}'::jsonb) || coalesce(p_metadata, '{}'::jsonb),
+    updated_at     = now()
+  where id = p_id;
 end; $$;

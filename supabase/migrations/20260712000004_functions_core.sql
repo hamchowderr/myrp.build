@@ -1,20 +1,17 @@
--- ── Clean baseline 04: application RPCs ───────────────────────────────────────
--- All keyed by Supabase auth uid. SECURITY DEFINER so they run with full rights
--- whether called via supabase.rpc from the renderer (anon key + Supabase JWT) or
--- from Edge Functions (service key). Plan is DERIVED from the workspace's active
--- subscription (or a comped owner -> 'studio'); usage is per-workspace + month.
+-- ── Consolidated baseline 04a: core functions (helpers, provisioning, billing, RAG) ──
+set check_function_bodies = off;
 
 -- ── pure helpers ─────────────────────────────────────────────────────────────
 
 -- first of next month (UTC) — usage reset boundary
 create or replace function public.next_reset_date()
-returns timestamptz language sql stable as $$
+returns timestamptz language sql stable set search_path = public as $$
   select date_trunc('month', now() at time zone 'utc') + interval '1 month'
 $$;
 
 -- monthly generation limit per plan
 create or replace function public.plan_limit(p_plan text)
-returns integer language sql immutable as $$
+returns integer language sql immutable set search_path = public as $$
   select case p_plan
     when 'studio'  then 2500
     when 'pro'     then 500
@@ -65,6 +62,27 @@ $$;
 create or replace function public.get_customer_workspace_id(p_customer text)
 returns uuid language sql stable security definer set search_path = public as $$
   select workspace_id from billing_customers where gateway_customer_id = p_customer
+$$;
+
+-- Owner RLS helper (mirrors is_workspace_member: one arg, identity via auth.uid()).
+create or replace function public.is_workspace_owner(p_workspace_id uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from workspace_members wm
+    where wm.workspace_id = p_workspace_id
+      and wm.user_id = auth.uid()
+      and wm.role = 'owner'
+  )
+$$;
+
+-- The caller's role in a workspace ('owner' | 'admin' | 'developer'), or NULL if
+-- the caller is not a member. Resolved from auth.uid() — never a client arg, so
+-- turn attribution can't be spoofed.
+create or replace function public.my_workspace_role(p_workspace_id uuid)
+returns text language sql stable security definer set search_path = public as $$
+  select wm.role::text
+  from workspace_members wm
+  where wm.workspace_id = p_workspace_id and wm.user_id = auth.uid()
 $$;
 
 -- ── provisioning ─────────────────────────────────────────────────────────────
@@ -218,7 +236,7 @@ begin
 end;
 $$;
 
-create or replace function public.add_workspace_member(p_workspace_id uuid, p_user_id uuid, p_role public.workspace_member_role default 'member')
+create or replace function public.add_workspace_member(p_workspace_id uuid, p_user_id uuid, p_role public.workspace_member_role default 'developer')
 returns void language plpgsql security definer set search_path = public as $$
 begin
   if not exists (select 1 from app_users where id = p_user_id) then
@@ -227,4 +245,38 @@ begin
   insert into workspace_members (workspace_id, user_id, role) values (p_workspace_id, p_user_id, p_role)
   on conflict (workspace_id, user_id) do update set role = excluded.role;
 end;
+$$;
+
+-- ── RAG read RPC ─────────────────────────────────────────────────────────────
+-- ox_corpus is a SHARED, read-only knowledge base (ox/FiveM docs) — no workspace
+-- scoping; any AUTHENTICATED user may read it. SECURITY DEFINER so the read
+-- reliably succeeds for any authenticated JWT regardless of ox_corpus's RLS/grant
+-- state, while still REQUIRING authentication (auth.uid() not null — the baked
+-- anon key alone, with no user JWT, cannot read the corpus).
+create or replace function public.match_ox_corpus(
+  query_embedding vector,
+  match_count integer default 8
+)
+returns table (
+  text text,
+  source_url text,
+  source_type text,
+  similarity double precision
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    metadata->>'text' as text,
+    metadata->>'source_url' as source_url,
+    metadata->>'source_type' as source_type,
+    1 - (embedding <=> query_embedding) as similarity
+  from public.ox_corpus
+  -- Require an authenticated caller: the shared corpus is readable by any signed-in
+  -- user, but never by an unauthenticated request bearing only the anon key.
+  where auth.uid() is not null
+  order by embedding <=> query_embedding
+  limit match_count;
 $$;

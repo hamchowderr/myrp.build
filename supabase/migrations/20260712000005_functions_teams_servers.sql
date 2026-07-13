@@ -1,8 +1,10 @@
--- ── Teams — management RPCs ──────────────────────────────────────────────────
--- All SECURITY DEFINER, identity via auth.uid()/auth.email() (the real caller, not
--- the definer). Writes to teams tables happen ONLY here (RLS is SELECT-only), so
--- authorization is enforced inside each function. No explicit grants — the public
--- schema's default privileges grant EXECUTE to anon/authenticated/service_role.
+-- ── Consolidated baseline 04b: teams management + servers RPCs ────────────────
+set check_function_bodies = off;
+
+-- ── teams management RPCs ─────────────────────────────────────────────────────
+-- All SECURITY DEFINER, identity via auth.uid()/auth.email() (the real caller,
+-- not the definer). Writes to teams tables happen ONLY here (RLS is SELECT-only),
+-- so authorization is enforced inside each function.
 
 -- Create a new (non-personal) team workspace owned by the caller.
 create or replace function public.create_team_workspace(p_name text)
@@ -165,4 +167,53 @@ declare v_uid uuid := auth.uid();
 begin
   if not public.is_workspace_member(p_workspace_id) then raise exception 'not a member of this workspace'; end if;
   update app_users set active_workspace_id = p_workspace_id where id = v_uid;
+end; $$;
+
+-- ── servers ──────────────────────────────────────────────────────────────────
+
+-- Upsert the caller's server for a workspace and return its id. Caller must be a
+-- member of the workspace (re-checked here via auth.uid(), not the definer).
+-- Idempotent on (workspace_id, client_server_key); supports multiple servers per
+-- workspace (each distinct client_server_key is its own row).
+create or replace function public.ensure_server(
+  p_workspace_id      uuid,
+  p_client_server_key text,
+  p_name              text default null
+) returns uuid language plpgsql security definer set search_path = public as $$
+declare v_id uuid;
+begin
+  if not public.is_workspace_member(p_workspace_id) then
+    raise exception 'not a member of this workspace';
+  end if;
+  insert into servers (workspace_id, client_server_key, name)
+    values (p_workspace_id, p_client_server_key, p_name)
+  on conflict (workspace_id, client_server_key) do update set
+    name       = coalesce(excluded.name, servers.name),
+    updated_at = now()
+  returning id into v_id;
+  return v_id;
+end; $$;
+
+-- Set (or clear) the shared GitHub remote for a server. Upserts the server row so
+-- a remote can be linked before any chat memory has created it. Caller must be a
+-- member of the workspace (re-checked via auth.uid(), not the definer). Pass
+-- p_github_remote_url = null to disconnect. Idempotent on
+-- (workspace_id, client_server_key).
+create or replace function public.set_server_github_remote(
+  p_workspace_id      uuid,
+  p_client_server_key text,
+  p_github_remote_url  text
+) returns uuid language plpgsql security definer set search_path = public as $$
+declare v_id uuid;
+begin
+  if not public.is_workspace_member(p_workspace_id) then
+    raise exception 'not a member of this workspace';
+  end if;
+  insert into servers (workspace_id, client_server_key, github_remote_url)
+    values (p_workspace_id, p_client_server_key, p_github_remote_url)
+  on conflict (workspace_id, client_server_key) do update set
+    github_remote_url = excluded.github_remote_url,
+    updated_at        = now()
+  returning id into v_id;
+  return v_id;
 end; $$;
