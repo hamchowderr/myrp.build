@@ -10,6 +10,10 @@ Electron + electron-vite — **three targets** (main, preload, renderer). "Done"
 - `npm run dev` — Electron + Vite HMR.
 - `npm run build` / `npm run build:win` — compile-check build / signed Windows installer. `build:unpack:nosign` = fast unpacked exe.
 
+## Maintenance checks
+- `npm run db:drift-check` — diff the **linked cloud Supabase** against local `supabase/migrations/`; a non-empty diff means a migration is recorded-as-applied but its body didn't fully run. Needs the CLI linked + Docker (shadow DB). Local-first, zero CI secrets.
+- `npm run ox:currency` — check the `ox_*` versions pinned in `docs/ox-server-setup.md` against the latest Overextended releases (via `gh`). CI-ready; exits non-zero when a pinned version is behind. Run it after touching ox versions instead of checking by hand.
+
 ## Conventions
 - **500-line hard cap** per file; review anything over ~300 lines for splitting.
 - Two type-declaration files MUST stay in sync: `src/preload/index.d.ts` and `src/renderer/src/env.d.ts` (both declare `window.api`).

@@ -337,6 +337,9 @@ npm run fallow               # dead-code / unused-dep scan
 npm test                     # Vitest — unit + Mastra agent tests (AIMock, zero credits)
 npm run test:e2e             # Playwright — packaged-exe prod-flow gate
 
+npm run db:drift-check       # cloud Supabase schema vs local migrations (drift = a misapplied migration)
+npm run ox:currency          # ox_* pinned versions vs the latest Overextended releases
+
 npm run build                # compile-check build (mode=development)
 npm run build:win            # signed Windows installer (.exe)
 npm run build:unpack:nosign  # fast unpacked exe for local prod-flow iteration
