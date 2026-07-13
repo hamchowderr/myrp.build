@@ -303,6 +303,8 @@ export const SUPPRESSED_INLINE_TOOLS = new Set([
   ...TASK_TOOLS,
   "ask_user",
   "submit_plan",
+  // Harness observational-memory write — internal plumbing, not user-facing work.
+  "updateWorkingMemory",
   ...Object.keys(FILE_MUTATION_TOOLS),
   ...FILE_READ_TOOLS,
 ]);
