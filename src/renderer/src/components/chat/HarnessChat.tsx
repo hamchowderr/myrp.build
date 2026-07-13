@@ -158,7 +158,9 @@ function renderContent(
         />
         <ToolContent>
           {subTask !== undefined ? (
-            <div className="space-y-2 p-3 text-xs leading-relaxed">
+            // Cap the delegation body and scroll INSIDE the card so a long
+            // specialist report doesn't push the whole chat down.
+            <div className="max-h-96 space-y-2 overflow-y-auto p-3 text-xs leading-relaxed">
               <p className="whitespace-pre-wrap">
                 <span className="text-muted-foreground">Task — </span>
                 {subTask}
