@@ -110,4 +110,4 @@ back to the agent to regenerate/fix, then re-run both layers.
 - ✅ Deploy & smoke-test core
 - ⬜ Smoke-test UI trigger + agent self-verify tool
 - ⬜ Server-side functional probes — trigger a resource's commands/exports via RCON and
-  check console/DB responses, narrowing the manual surface (`al1`)
+  check console/DB responses, narrowing the manual surface
