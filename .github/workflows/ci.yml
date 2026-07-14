@@ -24,7 +24,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # node 24 (ships npm 11) — the project requires it: @copilotkit/aimock
+          # has `engines: node >=24`, and @mastra/core's npm:-aliased @ai-sdk/* deps
+          # lock differently under npm 10 vs 11. The committed lock is npm-11-shaped
+          # (local dev is node 24), so an older node/npm here fails `npm ci`.
+          node-version: 24
           cache: npm
 
       - name: Install
