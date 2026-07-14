@@ -35,6 +35,8 @@ const GameViewPanel = lazy(() =>
   })),
 );
 
+type PreviewSource = { resourceName: string; htmlPath: string; htmlContent: string };
+
 interface ArtifactPanelProps {
   lastResult: GenerationResult | null;
   canUndo: boolean;
@@ -73,12 +75,10 @@ export function ArtifactPanel({
   // first mount until first opened, so nothing loads upfront.
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(["files"]));
 
-  // NUI preview state
-  const [previewSource, setPreviewSource] = useState<{
-    resourceName: string;
-    htmlPath: string;
-    htmlContent: string;
-  } | null>(null);
+  // NUI preview state. `nuiPick` is the resource explicitly chosen in the NUI
+  // Preview tab's switcher (uny); it overrides the file-tree-expansion coupling.
+  const [previewSource, setPreviewSource] = useState<PreviewSource | null>(null);
+  const [nuiPick, setNuiPick] = useState<string | null>(null);
 
   // Map coordinates state
   const [mapCoordinates, setMapCoordinates] = useState<ExtractedCoordinate[]>([]);
@@ -88,6 +88,7 @@ export function ArtifactPanel({
   const tree = useFileTree(localPath, lastResult, onDeleteResource, (name) => {
     viewer.clearForResource(name);
     setPreviewSource((prev) => (prev?.resourceName === name ? null : prev));
+    setNuiPick((prev) => (prev === name ? null : prev));
   });
 
   const canRestart = !!lastResult && !!serverStatus?.online && !!onRestart;
@@ -102,6 +103,35 @@ export function ArtifactPanel({
     setTimeout(() => setRestartMsg(null), 3000);
   }, [lastResult, onRestart]);
 
+  // Load a resource's NUI (first .html/.htm under its folder) for the preview.
+  // Reads from disk directly so the switcher can jump to a resource whose files
+  // aren't cached in the file tree yet.
+  const loadNui = useCallback(
+    async (resourceName: string): Promise<PreviewSource | null> => {
+      try {
+        const files = await window.api.listDir(`${localPath}/${resourceName}`);
+        const html = files.find(
+          (f) =>
+            f.relativePath.toLowerCase().endsWith(".html") ||
+            f.relativePath.toLowerCase().endsWith(".htm"),
+        );
+        if (!html) return null;
+        const content = await window.api.readFile(html.absolutePath);
+        return { resourceName, htmlPath: html.absolutePath, htmlContent: content };
+      } catch {
+        return null;
+      }
+    },
+    [localPath],
+  );
+
+  // A fresh generation should surface its own NUI — drop any manual switcher pick
+  // so the priority falls through to the freshly generated (auto-expanded) resource.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset only when the generated resource changes
+  useEffect(() => {
+    setNuiPick(null);
+  }, [lastResult?.resourceName]);
+
   // Auto-select first file when a resource expands and its files load.
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally keyed only on the expanded resource/files — adding the viewer deps would re-fire on every selection change and fight manual file selection
   useEffect(() => {
@@ -113,58 +143,32 @@ export function ArtifactPanel({
     viewer.handleFileClick(tree.expandedResource, first.absolutePath, first.relativePath);
   }, [tree.expandedResource, tree.resourceFiles]);
 
-  // Scan expanded resource for HTML files -> set previewSource
+  // Resolve which resource's NUI to preview, then load it. Priority: the explicit
+  // switcher pick (uny) → the file-tree's expanded resource → the last generated
+  // resource → the first NUI resource. Only resources that actually ship an NUI
+  // (tree.nuiResources — the set behind the file-tree "previewable" badge) are
+  // eligible, so the tab is no longer coupled to file-tree expansion.
   useEffect(() => {
-    if (!tree.expandedResource) {
-      if (lastResult) {
-        const htmlFile = lastResult.files.find(
-          (f) =>
-            f.relativePath.toLowerCase().endsWith(".html") ||
-            f.relativePath.toLowerCase().endsWith(".htm"),
-        );
-        if (htmlFile) {
-          window.api
-            .readFile(htmlFile.absolutePath)
-            .then((content) =>
-              setPreviewSource({
-                resourceName: lastResult.resourceName,
-                htmlPath: htmlFile.absolutePath,
-                htmlContent: content,
-              }),
-            )
-            .catch(() => setPreviewSource(null));
-        } else {
-          setPreviewSource(null);
-        }
-      } else {
-        setPreviewSource(null);
-      }
+    const nui = tree.nuiResources;
+    const has = (n: string | null | undefined): n is string => !!n && nui.has(n);
+    const lastName = lastResult?.resourceName;
+    const target =
+      (has(nuiPick) && nuiPick) ||
+      (has(tree.expandedResource) && tree.expandedResource) ||
+      (has(lastName) && lastName) ||
+      (nui.size > 0 ? [...nui].sort()[0] : null);
+    if (!target) {
+      setPreviewSource(null);
       return;
     }
-
-    const files = tree.resourceFiles.get(tree.expandedResource);
-    if (!files) return;
-
-    const htmlFile = files.find(
-      (f) =>
-        f.relativePath.toLowerCase().endsWith(".html") ||
-        f.relativePath.toLowerCase().endsWith(".htm"),
-    );
-    if (htmlFile) {
-      window.api
-        .readFile(htmlFile.absolutePath)
-        .then((content) =>
-          setPreviewSource({
-            resourceName: tree.expandedResource!,
-            htmlPath: htmlFile.absolutePath,
-            htmlContent: content,
-          }),
-        )
-        .catch(() => setPreviewSource(null));
-    } else {
-      setPreviewSource(null);
-    }
-  }, [tree.expandedResource, tree.resourceFiles, lastResult]);
+    let cancelled = false;
+    loadNui(target).then((src) => {
+      if (!cancelled) setPreviewSource(src);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [nuiPick, tree.expandedResource, tree.nuiResources, lastResult, loadNui]);
 
   // Parse coordinates when Map tab is active and resource changes
   useEffect(() => {
@@ -326,10 +330,27 @@ export function ArtifactPanel({
           {previewSource ? (
             <div className="flex h-full flex-col">
               <div className="flex shrink-0 items-center gap-2 border-b border-border-subtle/40 bg-elevated px-3 py-1">
-                <MonitorPlay className="size-3 text-primary" />
-                <span className="font-mono text-[10px] text-text-muted">
-                  {previewSource.resourceName}
-                </span>
+                <MonitorPlay className="size-3 shrink-0 text-primary" />
+                {/* Resource switcher (uny): pick which resource's NUI to preview,
+                    independent of what's expanded in the Files tab. */}
+                {tree.nuiResources.size > 1 ? (
+                  <select
+                    value={previewSource.resourceName}
+                    onChange={(e) => setNuiPick(e.target.value)}
+                    aria-label="Select which resource's NUI to preview"
+                    className="max-w-[200px] rounded bg-transparent font-mono text-[10px] text-text-muted outline-none [&>option]:bg-neutral-900"
+                  >
+                    {[...tree.nuiResources].sort().map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="font-mono text-[10px] text-text-muted">
+                    {previewSource.resourceName}
+                  </span>
+                )}
                 <span className="truncate font-mono text-[9px] text-text-dim">
                   {previewSource.htmlPath.split(/[/\\]/).pop()}
                 </span>
@@ -345,11 +366,7 @@ export function ArtifactPanel({
             <div className="flex h-full items-center justify-center text-text-dim">
               <div className="text-center font-mono text-xs">
                 <MonitorPlay className="mx-auto mb-2 size-8 opacity-30" />
-                <p>
-                  {tree.expandedResource
-                    ? "No HTML files in this resource"
-                    : "Expand a resource with HTML files to preview"}
-                </p>
+                <p>No resources with an NUI page to preview</p>
               </div>
             </div>
           )}
