@@ -1,5 +1,5 @@
 /**
- * Server switcher (multi-server epic m8se, fivem-studio-m8se.2).
+ * Server switcher (multi-server epic).
  *
  * A compact header dropdown listing every registered FiveM server, with a check
  * on the active one. Selecting a server flips AppSettings.activeServerId; because

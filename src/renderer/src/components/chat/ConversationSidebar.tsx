@@ -1,8 +1,8 @@
 /**
- * Conversation history sidebar (eh2g #3/#4/#6). Lists the workspace+server's
+ * Conversation history sidebar. Lists the workspace+server's
  * persisted threads (via the chat:* IPC bridge), grouped by date, and lets the
  * user reopen, rename, delete, search, and archive a conversation. Replaces the
- * localStorage prompt-history "Sessions" switcher (fivem-studio-7omn) with the
+ * localStorage prompt-history "Sessions" switcher with the
  * real threads that live in cloud/local Supabase memory.
  *
  * Mirrors Foreman's sidebar-history UX (debounced title+content search →
@@ -315,7 +315,7 @@ export function ConversationSidebar({
         </div>
       </div>
 
-      {/* Search box — titles + message content (eh2g #4). The inner relative
+      {/* Search box — titles + message content. The inner relative
           wrapper is exactly the input's height so the icons center on it (the
           outer pb-2 must not throw off top-1/2). */}
       <div className="px-2 pb-2">

@@ -15,12 +15,12 @@ import type {
 } from "../renderer/src/lib/types";
 
 const api = {
-  // Dev-mode bypass flag (lwt) — true when the renderer should skip Clerk sign-in
+  // Dev-mode bypass flag — true when the renderer should skip Discord sign-in
   // and Supabase billing. __DEV_BYPASS__ is a Vite-injected BUILD-TIME literal
   // (electron.vite.config.ts) — `true` only in `electron-vite dev|preview` with
   // FIVEM_STUDIO_DEV=1 in .env, `false` in every packaged build. Read at build
   // time rather than from process.argv because process.argv is attacker-controlled
-  // at launch (`FiveM Studio.exe --fivem-dev-bypass=1` would otherwise flip this).
+  // at launch (`myRP.build.exe --fivem-dev-bypass=1` would otherwise flip this).
   isDevBypass: __DEV_BYPASS__,
 
   // Dialogs
@@ -33,6 +33,9 @@ const api = {
   loadSettings: (): Promise<AppSettings | null> => ipcRenderer.invoke("settings:load"),
   scaffoldServer: (parentDir: string, name: string): Promise<ScaffoldResult | { error: string }> =>
     ipcRenderer.invoke("servers:scaffold", parentDir, name),
+  // Default parent folder for a new server (parent of the existing servers).
+  defaultServerParentDir: (): Promise<string | null> =>
+    ipcRenderer.invoke("servers:defaultParentDir"),
 
   // Server context
   findServerPaths: (): Promise<string[]> => ipcRenderer.invoke("context:findServers"),
@@ -58,7 +61,7 @@ const api = {
       workspaceId?: string;
     }): Promise<{ ok: boolean; copied?: number; error?: string }> =>
       ipcRenderer.invoke("chat:clone", payload),
-    // Conversation management (eh2g): list / load / rename / delete / search /
+    // Conversation management: list / load / rename / delete / search /
     // archive persisted threads.
     listThreads: (payload: {
       accessToken?: string;
@@ -155,14 +158,45 @@ const api = {
     },
   },
 
-  // Feedback capture (zhk.9): rate a logged generation thumbs up/down.
+  // Mastra Harness chat path — alpha, default-OFF. The renderer asks
+  // isEnabled() to pick this path over the legacy `chat` (useChat) one, then
+  // drives `start` (same chat:start handler — it branches on the flag) and folds
+  // `onEvent` (raw AgentControllerEvents + __thread__/__done__ sentinels) via
+  // reduceHarnessEvent. `cancel` reuses chat:cancel (same abort controller).
+  harness: {
+    isEnabled: (): Promise<boolean> => ipcRenderer.invoke("harness:isEnabled"),
+    start: (payload: {
+      text: string;
+      chatId: string;
+      model?: string;
+      accessToken?: string;
+      workspaceId?: string;
+    }): Promise<void> => ipcRenderer.invoke("chat:start", payload),
+    cancel: (): Promise<void> => ipcRenderer.invoke("chat:cancel"),
+    approve: (
+      decision: "approve" | "decline" | "always_allow_category",
+      toolCallId?: string,
+    ): Promise<void> => ipcRenderer.invoke("harness:approve", { decision, toolCallId }),
+    respondSuspension: (answer: unknown, toolCallId?: string): Promise<void> =>
+      ipcRenderer.invoke("harness:respondSuspension", { answer, toolCallId }),
+    onEvent: (callback: (event: { type: string; [k: string]: unknown }) => void): (() => void) => {
+      const handler = (
+        _e: Electron.IpcRendererEvent,
+        event: { type: string; [k: string]: unknown },
+      ): void => callback(event);
+      ipcRenderer.on("harness:event", handler);
+      return () => ipcRenderer.removeListener("harness:event", handler);
+    },
+  },
+
+  // Feedback capture: rate a logged generation thumbs up/down.
   feedback: {
     rate: (generationId: string, rating: "up" | "down"): Promise<boolean> =>
       ipcRenderer.invoke("feedback:rate", { generationId, rating }),
   },
 
-  // Server backup to GitHub (1yef). gitInit (1yef.1): git-init a server folder +
-  // .gitignore. github* + linkRepo (1yef.2): connect a GitHub account (token from
+  // Server backup to GitHub. gitInit: git-init a server folder +
+  // .gitignore. github* + linkRepo: connect a GitHub account (token from
   // the renderer's linkIdentity) and create/link one repo per server.
   backup: {
     gitInit: (
@@ -227,7 +261,7 @@ const api = {
   // Files
   readFile: (filePath: string): Promise<string> => ipcRenderer.invoke("files:read", filePath),
 
-  // Voice input → text (adb): transcribe recorded mic audio via OpenAI.
+  // Voice input → text: transcribe recorded mic audio via OpenAI.
   transcribeAudio: (
     audioBase64: string,
     mimeType: string,
@@ -266,7 +300,7 @@ const api = {
     ipcRenderer.invoke("server:smokeTestAll", resourceNames),
 
   // Files — extended
-  listResources: (localPath: string): Promise<string[]> =>
+  listResources: (localPath: string): Promise<{ name: string; hasNui: boolean }[]> =>
     ipcRenderer.invoke("files:listResources", localPath),
   deleteResource: (localPath: string, resourceName: string): Promise<void> =>
     ipcRenderer.invoke("files:deleteResource", localPath, resourceName),
@@ -302,7 +336,7 @@ const api = {
   testRcon: (port: number, rconPassword: string): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke("server:testRcon", port, rconPassword),
 
-  // txAdmin REST control — server restart button (zdy) + resource-manager live controls (myn)
+  // txAdmin REST control — server restart button + resource-manager live controls
   txadmin: {
     control: (
       action: "restart" | "stop" | "start",
@@ -316,7 +350,7 @@ const api = {
     testConnection: (): Promise<{ ok: boolean; name?: string; error?: string }> =>
       ipcRenderer.invoke("txadmin:testConnection"),
     isAvailable: (): Promise<{ available: boolean }> => ipcRenderer.invoke("txadmin:isAvailable"),
-    // Zero-password login (dt2): open the txAdmin panel, harvest the session.
+    // Zero-password login: open the txAdmin panel, harvest the session.
     webviewLogin: (): Promise<{
       ok: boolean;
       name?: string;
@@ -419,7 +453,7 @@ const api = {
 // sandbox:true — the sandboxed preload's `process` polyfill leaves
 // `contextIsolated` undefined, which sent us down the (contextIsolation-off)
 // `window.api = ...` path that can't cross the isolation boundary, leaving
-// window.api undefined in the renderer (fivem-studio-c0x).
+// window.api undefined in the renderer.
 try {
   contextBridge.exposeInMainWorld("api", api);
 } catch (error) {

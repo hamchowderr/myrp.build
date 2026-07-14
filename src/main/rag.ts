@@ -6,7 +6,7 @@
  * the same shape as the QMD server-context results so they slot into the system
  * prompt identically.
  *
- * Cloud cutover (M3.3 — fivem-studio-r4w): retrieval no longer opens a direct
+ * Cloud cutover: retrieval no longer opens a direct
  * `pg` connection to `RAG_DATABASE_URL` (a DB credential that must never ship in
  * the desktop client). Instead it calls the cloud `match_ox_corpus` RPC through
  * supabase-js, authenticated with the baked anon key + the per-run user JWT (the
@@ -18,7 +18,7 @@
  * Embeddings are produced LOCALLY by fastembed (bge-small-en-v1.5, 384-dim) via
  * the shared {@link EMBEDDER} — no API key, no per-query cost, nothing leaves the
  * machine. The model MUST match the one the ox_corpus index was built with (the
- * fivem-rag-ingestion pipeline) or vector search breaks (fivem-studio-1n47).
+ * fivem-rag-ingestion pipeline) or vector search breaks.
  *
  * Fail-safe by design: any misconfiguration or error returns `[]` and logs a
  * warning — generation continues without RAG rather than breaking.
@@ -39,6 +39,40 @@ interface MatchRow {
   source_url: string;
   source_type: string;
   similarity: number;
+}
+
+/** A distinct ox knowledge source that informed a generation — surfaced to the
+ *  UI as a citation ("Grounded in N ox sources"). */
+export interface OxSource {
+  sourceType: string;
+  sourceUrl: string;
+  similarity: number;
+}
+
+/** RAG retrieval result: the formatted snippets injected into the prompt, plus
+ *  the DISTINCT sources behind them (deduped by url) for UI citations. */
+export interface OxContextResult {
+  context: string[];
+  sources: OxSource[];
+}
+
+const EMPTY_RAG: OxContextResult = { context: [], sources: [] };
+
+/** Collapse per-chunk match rows to distinct sources (by url), keeping the best
+ *  similarity for each; rows arrive similarity-desc so the first wins. Exported
+ *  for unit testing. */
+export function distinctSources(rows: MatchRow[]): OxSource[] {
+  const byUrl = new Map<string, OxSource>();
+  for (const r of rows) {
+    if (!byUrl.has(r.source_url)) {
+      byUrl.set(r.source_url, {
+        sourceType: r.source_type,
+        sourceUrl: r.source_url,
+        similarity: r.similarity,
+      });
+    }
+  }
+  return [...byUrl.values()];
 }
 
 /** Embed a single string locally via fastembed (CPU, no key, no network). */
@@ -65,18 +99,18 @@ async function embedQuery(prompt: string): Promise<number[] | null> {
 export async function queryOxContext(
   prompt: string,
   client: RunSupabaseClient | undefined,
-): Promise<string[]> {
+): Promise<OxContextResult> {
   if (!client) {
     // Not configured — silently no-op (RAG is optional, and a missing client
     // means no authenticated cloud read is possible). Embeddings are local now,
     // so no API key is required — only an authenticated Supabase client.
-    return [];
+    return EMPTY_RAG;
   }
 
   const matchCount = Number.parseInt(process.env.RAG_MATCH_COUNT ?? "", 10) || DEFAULT_MATCH_COUNT;
 
   const embedding = await embedQuery(prompt);
-  if (!embedding) return [];
+  if (!embedding) return EMPTY_RAG;
 
   try {
     // The RPC expects a pgvector literal: supabase-js sends the JSON array string,
@@ -88,7 +122,7 @@ export async function queryOxContext(
     });
     if (error) {
       log.warn("[rag] match_ox_corpus RPC failed, continuing without ox context:", error.message);
-      return [];
+      return EMPTY_RAG;
     }
 
     const rows = (data ?? []) as MatchRow[];
@@ -96,12 +130,15 @@ export async function queryOxContext(
       log.info(`[rag] queryOxContext returned ${rows.length} ox snippets`);
     }
 
-    return rows.map(
-      (r) =>
-        `[${r.source_type}] ${r.source_url} (similarity: ${r.similarity.toFixed(3)})\n${r.text}`,
-    );
+    return {
+      context: rows.map(
+        (r) =>
+          `[${r.source_type}] ${r.source_url} (similarity: ${r.similarity.toFixed(3)})\n${r.text}`,
+      ),
+      sources: distinctSources(rows),
+    };
   } catch (err) {
     log.warn("[rag] query failed, continuing without ox context:", err);
-    return [];
+    return EMPTY_RAG;
   }
 }

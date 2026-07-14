@@ -1,5 +1,5 @@
 /**
- * Workspace switcher (teams epic 1gf, fivem-studio-nqy).
+ * Workspace switcher (teams epic).
  *
  * A compact dropdown in the account/footer area listing every workspace the user
  * belongs to (personal first), with a check on the active one. Selecting one calls
@@ -7,7 +7,7 @@
  * workspace the single source of truth that chat + billing read downstream.
  *
  * Owner/Developer role is shown as a small badge. "Manage team" opens the team
- * management dialog (nev). Pending-invite surfacing (96l) renders alongside.
+ * management dialog. Pending-invite surfacing renders alongside.
  */
 import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
@@ -47,7 +47,9 @@ export function WorkspaceSwitcher({
           aria-label="Switch workspace"
         >
           <Users className="size-3.5 shrink-0" />
-          <span className="truncate">{active.name}</span>
+          {/* Personal workspaces are named after the user's email — show a generic
+              "Personal" label instead so the chat footer doesn't surface the email. */}
+          <span className="truncate">{active.isPersonal ? "Personal" : active.name}</span>
           <ChevronsUpDown className="size-3 shrink-0 opacity-60" />
         </Button>
       </DropdownMenuTrigger>
@@ -66,7 +68,7 @@ export function WorkspaceSwitcher({
             <Check
               className={`size-3.5 shrink-0 ${w.workspaceId === active.workspaceId ? "opacity-100" : "opacity-0"}`}
             />
-            <span className="min-w-0 flex-1 truncate">{w.name}</span>
+            <span className="min-w-0 flex-1 truncate">{w.isPersonal ? "Personal" : w.name}</span>
             <Badge
               variant="secondary"
               className="shrink-0 px-1.5 py-0 text-[9px] font-normal uppercase tracking-wide"

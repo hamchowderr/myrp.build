@@ -3,7 +3,7 @@ import type { RunStorageContext } from "../../src/main/mastra/storage/context";
 import { SupabaseMemoryStorage } from "../../src/main/mastra/storage/memory";
 import type { RunSupabaseClient } from "../../src/main/mastra/storage/supabase-client";
 
-// z8j8.3: observational-memory parity. The observe/buffer/reflect logic runs in
+// observational-memory parity. The observe/buffer/reflect logic runs in
 // the adapter (JS) over a jsonb document, persisted via SECURITY DEFINER RPCs.
 // Stub the run client and assert the right RPC + args, record mapping, the
 // token-total accumulation, and the swap activation logic.
@@ -71,7 +71,7 @@ const BASE_RECORD = {
   config: {},
 };
 
-describe("Observational memory parity (z8j8.3)", () => {
+describe("Observational memory parity", () => {
   it("advertises observational-memory support", () => {
     expect(new SupabaseMemoryStorage(makeCtx().ctx).supportsObservationalMemory).toBe(true);
   });

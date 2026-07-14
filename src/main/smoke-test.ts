@@ -1,5 +1,5 @@
 /**
- * Deploy & smoke-test (fivem-studio-m7f / epic 5hx).
+ * Deploy & smoke-test.
  *
  * The automated half of "official" in-FiveM testing: deploy a generated resource
  * to the running FXServer via RCON, then scan the server console for the

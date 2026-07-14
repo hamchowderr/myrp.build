@@ -1,12 +1,12 @@
 /**
- * Backup → GitHub settings section (fivem-studio-1yef.2).
+ * Backup → GitHub settings section.
  *
  * Two steps: (1) connect a GitHub account — the SAME Supabase OAuth used for
  * sign-in, via linkIdentity({ provider:'github', scopes:'repo' }) through the RFC
  * 8252 loopback; the resulting provider_token is handed to main (safeStorage,
  * never the DB). (2) Create/link ONE repo for the active server and point its
  * `origin` at it; the clean URL is shared across the workspace so teammates (added
- * as GitHub collaborators) push to the same repo. Commit/push is 1yef.3.
+ * as GitHub collaborators) push to the same repo.
  *
  * Prod-path only: in dev-bypass there is no Supabase session, so this shows a
  * notice (mirrors SubscriptionSection).

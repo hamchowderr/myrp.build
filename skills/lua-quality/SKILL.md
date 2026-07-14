@@ -649,98 +649,11 @@ end)
 
 For sensitive actions (economy, item transfers): add server-side validation beyond just cooldown. Verify the player actually has the required items/money BEFORE deducting.
 
-## fxmanifest.lua Template
+## See also
 
-```lua
-fx_version 'cerulean'
-game 'gta5'
-lua54 'yes'
-
-author 'FiveM Studio'
-description 'Resource description'
-version '1.0.0'
-
-shared_scripts {
-  '@ox_lib/init.lua',
-  'shared/*.lua'
-}
-
-server_scripts {
-  '@oxmysql/lib/MySQL.lua',
-  'server/*.lua'
-}
-
-client_scripts {
-  'client/*.lua'
-}
-
--- NUI only:
-files { 'html/index.html', 'html/style.css', 'html/app.js' }
-ui_page 'html/index.html'
-
-dependencies {
-  'ox_lib',
-  'oxmysql'
-}
-```
-
-Rules:
-
-- `lua54 'yes'` is ALWAYS included — enables Lua 5.4 features, required for ox_lib 3.x
-- `game 'gta5'` is ALWAYS included
-- Declare EVERY script file — missing declarations = silent load failure
-- List `ox_lib`/`oxmysql` BEFORE your own scripts so globals are available
-- Only list dependencies you actually use — extra deps cause startup warnings
-
-## NUI (HTML/CSS/JS Interfaces)
-
-```lua
--- Opening NUI — ALWAYS set focus
-RegisterNetEvent('myresource:openMenu', function()
-  SetNuiFocus(true, true)
-  SendNUIMessage({ action = 'open', data = myData })
-end)
-
--- Closing NUI — ALWAYS release focus
-RegisterNuiCallback('closeMenu', function(_, cb)
-  SetNuiFocus(false, false)
-  cb('ok', {})
-end)
-```
-
-- Always call `SetNuiFocus(true, true)` when opening
-- Always call `SetNuiFocus(false, false)` on close
-- Always send `cb('ok', {})` in NUI callbacks to resolve the JS promise
-- Never use `window.invokeNative` — always `fetch()` for NUI callbacks
-- Never leave `SetNuiFocus(true, true)` without a close path — it traps the mouse
-- HUD resources: body must have `pointer-events: none`, NEVER call `SetNuiFocus`
-
-## HUD Design Standards
-
-A HUD is a passive, always-visible NUI overlay. It NEVER calls SetNuiFocus.
-
-Required stats (unless the user explicitly asks for fewer):
-
-- Health (red) — `GetEntityHealth(ped)`, maps 100-200 to 0-100%
-- Armor (blue) — `GetPedArmour(ped)`, 0-100
-- Hunger (orange/yellow) — from framework player data
-- Thirst (cyan/teal) — from framework player data
-- Stamina (green) — `GetPlayerStamina(PlayerId())`, 0-100
-
-Visual design:
-
-- Position: bottom-left, above the GTA V minimap (bottom ~178px, left ~15px)
-- Width: ~200-220px (matches minimap width)
-- Background: dark, semi-transparent with blur
-- Bars: thin (6-8px), rounded, gradient fills, smooth CSS transitions
-- body must have `pointer-events: none`
-
-Client pattern:
-
-- One `CreateThread` polling at 200-500ms
-- Read health/armor/stamina from natives, hunger/thirst from framework metadata
-- Single `SendNUIMessage({ action = 'update', ... })` per tick
-- `{ action = 'show' }` on player load, `{ action = 'hide' }` on death
+`fxmanifest.lua` structure, NUI focus/callback rules, and HUD design each have a
+dedicated skill — load `fxmanifest`, `nui-patterns`, and `hud-design` instead of
+duplicating them here.
 
 ## Commands
 

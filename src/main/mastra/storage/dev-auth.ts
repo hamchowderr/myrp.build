@@ -1,5 +1,5 @@
 /**
- * Dev-only local Supabase sign-in (fivem-studio-v1f9).
+ * Dev-only local Supabase sign-in.
  *
  * In dev-bypass there is no user JWT, so chat memory used to fall back to a raw
  * PostgresStore — which conflicted with the unified local Supabase's cloud

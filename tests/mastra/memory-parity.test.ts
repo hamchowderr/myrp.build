@@ -3,7 +3,7 @@ import type { RunStorageContext } from "../../src/main/mastra/storage/context";
 import { SupabaseMemoryStorage } from "../../src/main/mastra/storage/memory";
 import type { RunSupabaseClient } from "../../src/main/mastra/storage/supabase-client";
 
-// z8j8.1/.2: deleteMessages + resource-scoped working memory bring the cloud
+// deleteMessages + resource-scoped working memory bring the cloud
 // adapter to @mastra/pg MemoryPG parity. Both go through SECURITY DEFINER RPCs;
 // here we stub the run client and assert the right RPC + args are issued and rows
 // map back to the Mastra shape.
@@ -55,7 +55,7 @@ function makeCtx(resourceRow?: ResourceRow): { ctx: RunStorageContext; rpcCalls:
   return { ctx, rpcCalls };
 }
 
-describe("SupabaseMemoryStorage.deleteMessages (z8j8.1)", () => {
+describe("SupabaseMemoryStorage.deleteMessages", () => {
   it("calls the delete RPC with the message ids", async () => {
     const { ctx, rpcCalls } = makeCtx();
     await new SupabaseMemoryStorage(ctx).deleteMessages(["m1", "m2"]);
@@ -70,7 +70,7 @@ describe("SupabaseMemoryStorage.deleteMessages (z8j8.1)", () => {
   });
 });
 
-describe("SupabaseMemoryStorage resource working memory (z8j8.2)", () => {
+describe("SupabaseMemoryStorage resource working memory", () => {
   const row: ResourceRow = {
     id: "ws_a__srv_b",
     working_memory: "# notes",

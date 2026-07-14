@@ -67,6 +67,11 @@ export function ArtifactPanel({
   const [isRestarting, setIsRestarting] = useState(false);
   const [restartMsg, setRestartMsg] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("files");
+  // Keep-alive: once a tab has been opened, keep it mounted (forceMount) so
+  // switching back is instant instead of remounting + re-running its loading
+  // (which flashed an empty/error-looking state). Lazy tabs still defer their
+  // first mount until first opened, so nothing loads upfront.
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(["files"]));
 
   // NUI preview state
   const [previewSource, setPreviewSource] = useState<{
@@ -204,9 +209,16 @@ export function ArtifactPanel({
       {/* Tabs + panel actions share one band. The active resource already shows
           in the file tree and the file-viewer breadcrumb, so a separate
           "Resource:" header would just be another redundant line. */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 flex-1 flex-col">
-        <div className="flex shrink-0 items-center justify-between pr-2">
-          <TabsList className="h-auto justify-start gap-1.5 rounded-none border-0 bg-transparent py-1.5 pl-2">
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => {
+          setActiveTab(v);
+          setVisitedTabs((prev) => (prev.has(v) ? prev : new Set(prev).add(v)));
+        }}
+        className="flex min-h-0 flex-1 flex-col"
+      >
+        <div className="relative flex shrink-0 items-center justify-center">
+          <TabsList className="h-auto justify-center gap-1.5 rounded-none border-0 bg-transparent py-1.5">
             <TabsTrigger value="files" className={tabTriggerClass}>
               <FolderTree className="size-3" />
               Files
@@ -246,8 +258,8 @@ export function ArtifactPanel({
               Testing
             </TabsTrigger>
           </TabsList>
-          {(canRestart || canUndo) && (
-            <div className="flex items-center gap-1">
+          {activeTab === "files" && (canRestart || canUndo) && (
+            <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
               {canRestart && (
                 <Button
                   variant="ghost"
@@ -280,7 +292,11 @@ export function ArtifactPanel({
         </div>
 
         {/* Files tab */}
-        <TabsContent value="files" className="mt-0 min-h-0 flex-1 overflow-hidden">
+        <TabsContent
+          value="files"
+          forceMount={visitedTabs.has("files") ? true : undefined}
+          className="mt-0 min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
+        >
           <div className="flex h-full">
             <FileTreePanel
               tree={tree}
@@ -293,15 +309,23 @@ export function ArtifactPanel({
         </TabsContent>
 
         {/* Terminal tab */}
-        <TabsContent value="terminal" className="mt-0 min-h-0 flex-1 overflow-hidden">
+        <TabsContent
+          value="terminal"
+          forceMount={visitedTabs.has("terminal") ? true : undefined}
+          className="mt-0 min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
+        >
           <ServerConsolePanel entries={consoleEntries} onClear={onClearConsole} />
         </TabsContent>
 
         {/* NUI Preview tab */}
-        <TabsContent value="nuiPreview" className="mt-0 min-h-0 flex-1 overflow-hidden">
+        <TabsContent
+          value="nuiPreview"
+          forceMount={visitedTabs.has("nuiPreview") ? true : undefined}
+          className="mt-0 min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
+        >
           {previewSource ? (
             <div className="flex h-full flex-col">
-              <div className="flex shrink-0 items-center gap-2 border-b border-border-subtle bg-elevated px-3 py-1">
+              <div className="flex shrink-0 items-center gap-2 border-b border-border-subtle/40 bg-elevated px-3 py-1">
                 <MonitorPlay className="size-3 text-primary" />
                 <span className="font-mono text-[10px] text-text-muted">
                   {previewSource.resourceName}
@@ -332,7 +356,11 @@ export function ArtifactPanel({
         </TabsContent>
 
         {/* Map tab */}
-        <TabsContent value="map" className="mt-0 min-h-0 flex-1 overflow-hidden">
+        <TabsContent
+          value="map"
+          forceMount={visitedTabs.has("map") ? true : undefined}
+          className="mt-0 min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
+        >
           <Suspense
             fallback={
               <div className="flex h-full items-center justify-center">
@@ -366,7 +394,11 @@ export function ArtifactPanel({
         </TabsContent>
 
         {/* Game View tab */}
-        <TabsContent value="gameview" className="mt-0 min-h-0 flex-1 overflow-hidden">
+        <TabsContent
+          value="gameview"
+          forceMount={visitedTabs.has("gameview") ? true : undefined}
+          className="mt-0 min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
+        >
           <Suspense
             fallback={
               <div className="flex h-full items-center justify-center">
@@ -378,8 +410,12 @@ export function ArtifactPanel({
           </Suspense>
         </TabsContent>
 
-        {/* Testing tab — smoke-test + playtest checklist (fivem-studio-c0m) */}
-        <TabsContent value="testing" className="mt-0 min-h-0 flex-1 overflow-hidden">
+        {/* Testing tab — smoke-test + playtest checklist */}
+        <TabsContent
+          value="testing"
+          forceMount={visitedTabs.has("testing") ? true : undefined}
+          className="mt-0 min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
+        >
           <TestingPanel resources={tree.serverResources} serverStatus={serverStatus} />
         </TabsContent>
       </Tabs>

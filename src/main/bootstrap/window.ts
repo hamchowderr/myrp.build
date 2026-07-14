@@ -15,7 +15,7 @@ import icon from "../../../resources/icon.png?asset";
 import { state } from "../shared-state";
 
 /**
- * Security: restrict in-app navigation (Electron checklist #13, fivem-studio-o6r).
+ * Security: restrict in-app navigation (Electron checklist #13).
  * The renderer only loads our own UI (dev server in dev, file:// in prod), so any
  * top-level navigation elsewhere is unexpected — block it, and open real http(s)
  * links in the user's browser instead. (Subframes are governed by the CSP and new
@@ -59,7 +59,7 @@ export function registerNavigationGuard(): void {
 
 /**
  * Create the single main BrowserWindow and load the renderer. `devBypass`
- * exposes the dev-bypass flag to the preload synchronously (fivem-studio-lwt).
+ * exposes the dev-bypass flag to the preload synchronously.
  */
 export function createWindow(devBypass: boolean): void {
   // Custom-UI app — skip Electron's default application menu entirely. Avoids
@@ -77,15 +77,22 @@ export function createWindow(devBypass: boolean): void {
     ...(process.platform === "linux" ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
-      // Expose the dev-bypass flag to the preload synchronously (lwt).
+      // Expose the dev-bypass flag to the preload synchronously.
       additionalArguments: [`--fivem-dev-bypass=${devBypass ? "1" : "0"}`],
       // Sandbox ON (Electron security checklist #4). Root cause of the earlier
       // breakage: the preload did `require('@electron-toolkit/preload')`, which a
       // sandboxed preload can't do (only `require('electron')` + polyfilled
       // builtins are allowed) — so the preload aborted and window.api never
       // exposed. Fixed by dropping that unused dep (it only powered an unused
-      // window.electron). Preload now requires only 'electron'. (fivem-studio-c0x)
+      // window.electron). Preload now requires only 'electron'.
       sandbox: true,
+      // Never throttle the renderer when the window isn't the foreground window.
+      // Chromium's default (backgroundThrottling: true) drops rAF/compositor to
+      // ~1fps on occluded/unfocused windows — and Windows occlusion detection
+      // misfires while the app is plainly in use, stretching the 0.15s overlay
+      // open animations (popovers, model selector, dialogs) to 1s+ so they look
+      // like they "only show halfway." Off = instant overlays regardless of focus.
+      backgroundThrottling: false,
     },
   });
 
@@ -113,7 +120,7 @@ export function createWindow(devBypass: boolean): void {
   });
 
   if (is.dev && process.env.ELECTRON_RENDERER_URL) {
-    // Dev-only: mirror the renderer console (incl. React/Clerk errors) into the
+    // Dev-only: mirror the renderer console (incl. React/auth errors) into the
     // main process stdout so renderer failures are visible in the terminal, and
     // open DevTools. Both are stripped from packaged builds (is.dev === false).
     state.mainWindow.webContents.openDevTools({ mode: "detach" });

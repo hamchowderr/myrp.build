@@ -1,9 +1,9 @@
 /**
  * Add-a-server dialog (multi-server epic).
  *
- *  - "Add existing" (m8se.3): one click lists server folders found on disk via
+ *  - "Add existing": one click lists server folders found on disk via
  *    findServerPaths() (minus already-registered ones), plus a manual browse.
- *  - "Create new" (m8se.4): scaffold a fresh ox server folder (starter server.cfg
+ *  - "Create new": scaffold a fresh ox server folder (starter server.cfg
  *    + ox base) under a chosen location, then register it.
  *
  * Either path registers the server via addServer() and reloads so the
@@ -148,6 +148,15 @@ function CreateNew({ settings }: { settings: AppSettings }) {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Pre-fill the location with the folder that already holds the user's servers,
+  // so a new server lands alongside the existing ones and you only type a name.
+  // Browse still overrides. Null (first run, no server yet) keeps the Browse prompt.
+  useEffect(() => {
+    window.api.defaultServerParentDir().then((dir) => {
+      if (dir) setParentDir((cur) => cur ?? dir);
+    });
+  }, []);
+
   async function pickLocation() {
     const dir = await window.api.selectFolder();
     if (dir) setParentDir(dir);
@@ -214,7 +223,7 @@ function CreateNew({ settings }: { settings: AppSettings }) {
   );
 }
 
-// Restore (clone) a backed-up server repo from GitHub (1yef.4). Lists the
+// Restore (clone) a backed-up server repo from GitHub. Lists the
 // workspace's backups (cloud `servers` rows with a remote) and/or accepts a repo
 // URL, clones into a chosen folder, then reuses registerAndReload so the restored
 // server appears + activates. Prod-path only (needs the GitHub connection).

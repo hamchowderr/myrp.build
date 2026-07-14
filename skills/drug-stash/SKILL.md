@@ -202,7 +202,7 @@ fx_version 'cerulean'
 game 'gta5'
 lua54 'yes'
 
-author 'FiveM Studio'
+author 'myRP.build'
 description 'Ballas crew stash — shared, group-gated ox_inventory stash'
 version '1.0.0'
 

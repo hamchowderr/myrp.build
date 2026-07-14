@@ -1,8 +1,8 @@
 /**
- * deploy_resource tool (445.2) — makes a freshly built/edited resource live on the
+ * deploy_resource tool — makes a freshly built/edited resource live on the
  * RUNNING FiveM server via RCON `refresh` + `ensure <resource>`.
  *
- * Contract (vault: "FiveM Studio - Agent Server Interaction"):
+ * Contract (vault: "myRP.build - Agent Server Interaction"):
  *   - NEVER starts/stops the server — that's txAdmin + the user. If the server is
  *     offline, this no-ops and tells the user to start it.
  *   - Scoped to ONE resource; `ensure` loads it (or reloads if running). No

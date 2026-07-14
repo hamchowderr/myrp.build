@@ -1,4 +1,4 @@
-// Standalone notification diagnostic (fivem-studio-wty). Run with:
+// Standalone notification diagnostic. Run with:
 //   npx electron scripts/notif-test.cjs
 // Uses the SAME AppUserModelID as the app so it leans on the installed
 // Start Menu shortcut's registration. Writes results to a temp log so the

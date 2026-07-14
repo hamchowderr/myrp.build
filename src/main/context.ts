@@ -200,8 +200,8 @@ export function parseRconPassword(cfg: string): string | null {
  * Resolve rcon_password by reading server.cfg AND following its `exec`/`@include`
  * directives — the password is almost always externalized into a gitignored
  * secrets cfg (e.g. `myrp-secrets.cfg`) that server.cfg `exec`s, so parsing only
- * server.cfg misses it (the root cause of the false "RCON isn't configured",
- * fivem-studio-92fh). exec paths resolve relative to the cfg that declares them.
+ * server.cfg misses it (the root cause of the false "RCON isn't configured").
+ * exec paths resolve relative to the cfg that declares them.
  * Bounded depth + a visited set guard against cycles.
  */
 export async function resolveRconPasswordFromCfg(

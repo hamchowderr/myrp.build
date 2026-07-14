@@ -1,6 +1,6 @@
-// billing-return — the post-Checkout landing page (ok7 / fivem-studio-1tj).
+// billing-return — the post-Checkout landing page.
 //
-// Stripe Checkout requires http(s) success/cancel URLs, but FiveM Studio is a
+// Stripe Checkout requires http(s) success/cancel URLs, but myRP.build is a
 // desktop app with no website. This function serves a minimal, on-brand HTML page
 // telling the user to return to the app. The subscription itself is activated by
 // the stripe-webhook regardless of this page. No auth (Stripe redirects here via a

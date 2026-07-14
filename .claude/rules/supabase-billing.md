@@ -11,7 +11,7 @@ Auth is **native Supabase Auth (Discord OAuth, PKCE)** — Clerk was removed (Ph
 ## Plan / usage model
 - Plans + monthly limits (`plan_limit()`): `free` 10, `starter` 100, `pro` 500, `studio` 2500.
 - `workspace_plan(ws)` → the workspace's active-subscription plan (else `free`). `get_subscription()` (renderer, RLS by `auth.uid()`) and `get_user_workspace_plan()` (edge fn, service role) return plan + usage + `can_generate`.
-- Quota gate: `supabase/functions/fivem-inference-proxy` checks `can_generate` (429 if over), proxies to the Vercel AI Gateway with OUR key, then fire-and-forgets `increment_usage`.
+- Quota gate: `supabase/functions/inference-proxy` checks `can_generate` (429 if over), proxies to the Vercel AI Gateway with OUR key, then fire-and-forgets `increment_usage`.
 - Stripe checkout/portal/webhook are Deno edge functions (`create-checkout`, `create-portal`, `stripe-webhook`).
 
 ## Cloud Mastra memory (per-tenant, no creds in client)
@@ -26,4 +26,4 @@ Customers are teams. Roles = **Owner + Developer** (`workspace_member_role`; `ad
 - Edge functions read secrets from `supabase/functions/.env`, which the edge runtime loads **only at `supabase start`**. After editing it, run `supabase stop && supabase start` — a plain docker restart does NOT reload it.
 - `window.open(url)` for Stripe is routed to the system browser by `setWindowOpenHandler` in main (`index.ts`); fine to use. The OAuth flow uses `window.api.openExternal`.
 - Verify an edge fn: `deno check index.ts`, then `supabase functions serve <fn>` + curl.
-- Never inline secrets into the client; only `VITE_SUPABASE_URL`/anon key + `PROXY_BASE_URL` are build-inlined. The owner's `ANTHROPIC_API_KEY` and gateway keys stay runtime-only.
+- Never inline secrets into the client; only `VITE_SUPABASE_URL`/anon key + `PROXY_BASE_URL` are build-inlined. The owner's gateway key (`VERCEL_GATEWAY_KEY`) and any proxy token stay runtime-only.

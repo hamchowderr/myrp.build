@@ -1,4 +1,4 @@
--- Dev-only seed: a deterministic local Supabase user (fivem-studio-v1f9).
+-- Dev-only seed: a deterministic local Supabase user.
 --
 -- WHY: in dev-bypass the Electron main process needs a real local-Supabase
 -- session JWT so chat memory uses the SAME SupabaseMemoryStorage adapter as

@@ -15,6 +15,31 @@ import {
 } from "../fileWriter";
 import { state } from "../shared-state";
 
+/**
+ * Does a resource ship an NUI page? Detected by the presence of an .html file —
+ * the same thing the NUI Preview tab actually renders (ArtifactPanel). Searched a
+ * few levels deep (html/ ui/ web/ nui/ subdirs) and fail-soft on any read error.
+ * Read-only: never touches the resource or its fxmanifest.
+ */
+async function resourceHasHtml(dir: string, depth = 0): Promise<boolean> {
+  try {
+    const entries = await readdir(dir, { withFileTypes: true });
+    for (const e of entries) {
+      if (e.isFile() && /\.html?$/i.test(e.name)) return true;
+    }
+    if (depth < 3) {
+      for (const e of entries) {
+        if (e.isDirectory() && e.name !== "node_modules" && !e.name.startsWith(".")) {
+          if (await resourceHasHtml(join(dir, e.name), depth + 1)) return true;
+        }
+      }
+    }
+  } catch {
+    // unreadable dir — treat as no NUI
+  }
+  return false;
+}
+
 export function registerFileHandlers(): void {
   // Read a file for the in-app code viewer
   ipcMain.handle("files:read", async (_event, filePath: string) => {
@@ -50,14 +75,21 @@ export function registerFileHandlers(): void {
     return isEnsured(state.cachedContext.serverCfgPath, resourceName);
   });
 
-  // List resource folder names in a given localPath
+  // List resources in a given localPath, each flagged with whether it ships an
+  // NUI page (hasNui) so the file tree can mark it as previewable.
   ipcMain.handle("files:listResources", async (_event, localPath: string) => {
     try {
       const entries = await readdir(localPath, { withFileTypes: true });
-      return entries
+      const names = entries
         .filter((e) => e.isDirectory() && !e.name.startsWith(".") && e.name !== "node_modules")
         .map((e) => e.name)
         .sort();
+      return await Promise.all(
+        names.map(async (name) => ({
+          name,
+          hasNui: await resourceHasHtml(join(localPath, name)),
+        })),
+      );
     } catch {
       return [];
     }

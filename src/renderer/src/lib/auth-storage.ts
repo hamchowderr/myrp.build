@@ -1,6 +1,6 @@
 /**
- * Persistent storage adapter for the renderer's Supabase Auth client
- * (fivem-studio-gvh). Clerk kept its session in memory only under
+ * Persistent storage adapter for the renderer's Supabase Auth client.
+ * The prior auth provider kept its session in memory only under
  * standardBrowser:false, so it died on reload/refresh. Supabase exposes a
  * pluggable `storage` interface (its documented React-Native/native pattern):
  * we back it with an ENCRYPTED file in the main process (safeStorage) over IPC,

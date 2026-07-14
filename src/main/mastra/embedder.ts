@@ -4,7 +4,7 @@
  * fastembed bge-small-en-v1.5 runs entirely on CPU via onnxruntime (no API key,
  * no per-query cost, nothing leaves the machine). It replaced the paid OpenAI
  * text-embedding-3-small (1536-dim) for BOTH the ox RAG corpus and the workspace
- * own-resource search (fivem-studio-1n47).
+ * own-resource search.
  *
  * CRITICAL: this MUST stay identical to the embedder the indexes were BUILT with
  * (the fivem-rag-ingestion pipeline embeds ox_corpus with `fastembed.small`). A
@@ -12,9 +12,11 @@
  * vector search. If the retrieval-quality gate ever forces a bigger model, change
  * it HERE (and re-ingest at the new dimension) — every consumer imports from here.
  *
- * Packaging note (fivem-studio follow-up): onnxruntime-node is a native addon and
- * the bge-small weights download on first use — both need the asarUnpack / model
- * bundling treatment before this ships in a packaged Electron build.
+ * Packaging: onnxruntime-node (native addon + sibling DLLs) is unpacked
+ * from the asar, and the bge-small weights are bundled as an extraResource and
+ * pre-seeded into ~/.cache/mastra/fastembed-models at first launch
+ * (src/main/bootstrap/fastembed-seed.ts), so packaged / offline installs never
+ * download the model at runtime. See electron-builder.yml.
  */
 
 import { fastembed } from "@mastra/fastembed";

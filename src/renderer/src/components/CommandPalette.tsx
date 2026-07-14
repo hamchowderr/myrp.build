@@ -1,11 +1,11 @@
 /**
- * Global command palette (Cmd/Ctrl-K) — fivem-studio-dnx8.1.
+ * Global command palette (Cmd/Ctrl-K).
  *
  * A cmdk CommandDialog over an action registry: navigate the app shell (Servers
  * dashboard, Settings), switch the active server (one item per registered
  * server, cascading via onOpenServer), add a server, and toggle the theme.
  * Mounted once in AppContent so it's reachable from every screen. Chat-scoped
- * actions (new thread, clone) land with dnx8.2.
+ * actions (new thread, clone) land later.
  */
 import { AddServerDialog } from "@renderer/components/AddServerDialog";
 import {

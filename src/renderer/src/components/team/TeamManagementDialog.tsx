@@ -1,7 +1,7 @@
 /**
- * Team management dialog (teams epic 1gf, fivem-studio-nev).
+ * Team management dialog (teams epic).
  *
- * Operates on the ACTIVE workspace (from useAccount, set by the switcher — nqy):
+ * Operates on the ACTIVE workspace (from useAccount, set by the switcher):
  *  - lists members + roles (get_workspace_members),
  *  - owner-only: invite by email (create_invitation), remove a member
  *    (remove_member), revoke a pending invite (revoke_invitation),

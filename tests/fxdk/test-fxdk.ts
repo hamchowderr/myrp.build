@@ -6,7 +6,7 @@
  * No FiveM server or game client needed — these test the primitives in isolation.
  *
  * The individual test groups live under ./helpers/ (split to stay under the
- * 500-line cap, fivem-studio-h4x); this file is the runner that sequences them.
+ * 500-line cap); this file is the runner that sequences them.
  */
 
 import { testGameView } from "./helpers/gameview-tests";

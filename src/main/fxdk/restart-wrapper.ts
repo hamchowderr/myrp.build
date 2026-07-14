@@ -1,5 +1,5 @@
 /**
- * FXServer restart-loop wrapper (fivem-studio-e4c).
+ * FXServer restart-loop wrapper.
  *
  * PROBLEM: launching FXServer.exe DIRECTLY means a txAdmin "full restart" (which
  * exits the FXServer process) leaves the server dead — nothing relaunches it,
@@ -49,7 +49,7 @@ export async function writeRestartWrapper(
   const cmdLine = [quotedExe, ...quotedArgs].join(" ");
   const body = [
     "@echo off",
-    "rem myRP.build FXServer restart-loop wrapper (fivem-studio-e4c).",
+    "rem myRP.build FXServer restart-loop wrapper.",
     "rem Relaunches FXServer.exe whenever it exits so a txAdmin full-restart",
     "rem brings the server back. The app's Stop tree-kills this wrapper.",
     `cd /d "${dataDir}"`,

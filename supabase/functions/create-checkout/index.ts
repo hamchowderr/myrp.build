@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
       return json({ error: "only the workspace owner can manage billing" }, 403);
     }
 
-    // Self-healing valid customer (fivem-studio-cxd) — same as create-portal.
+    // Self-healing valid customer — same as create-portal.
     const customerId = await getOrCreateCustomer(stripe, supabase, workspace_id, email);
 
     const session = await stripe.checkout.sessions.create({

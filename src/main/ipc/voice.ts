@@ -1,5 +1,5 @@
 /**
- * Voice input → text (fivem-studio-adb). The Web Speech API can't work in
+ * Voice input → text. The Web Speech API can't work in
  * Electron (Chromium has no key for Google's private speech backend → error:
  * network), so we do STT ourselves: the renderer records mic audio
  * (MediaRecorder) and sends it here to transcribe via OpenAI, returning the text

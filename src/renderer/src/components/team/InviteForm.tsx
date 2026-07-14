@@ -1,5 +1,5 @@
 /**
- * Invite-by-email form (teams epic 1gf, fivem-studio-nev). Owner-only (the dialog
+ * Invite-by-email form (teams epic). Owner-only (the dialog
  * gates rendering; create_invitation re-checks ownership server-side). Creates a
  * pending workspace_invitations row matched to the invitee by email on next sign-in.
  */

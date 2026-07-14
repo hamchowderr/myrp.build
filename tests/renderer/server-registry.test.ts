@@ -9,7 +9,7 @@ import {
 } from "../../src/renderer/src/lib/server-registry";
 import type { AppSettings } from "../../src/renderer/src/lib/types";
 
-// fivem-studio-m8se.1 — the local server registry is the SINGLE source of truth
+// The local server registry is the SINGLE source of truth
 // for per-server connection config. These tests pin the migration + accessor
 // contract that keeps any one field from living in two places.
 

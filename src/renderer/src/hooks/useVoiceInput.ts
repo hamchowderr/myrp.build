@@ -1,5 +1,5 @@
 /**
- * Voice input (fivem-studio-adb): record mic audio (MediaRecorder), send to the
+ * Voice input: record mic audio (MediaRecorder), send to the
  * main process for OpenAI transcription, hand the text back to the caller to drop
  * into the prompt. Replaces the dead Web Speech mic (can't work in Electron).
  */

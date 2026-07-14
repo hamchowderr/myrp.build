@@ -2,7 +2,7 @@
 
 Authoritative setup notes for standing up an **ox_overextended** FiveM server,
 sourced from the official CommunityOx/Overextended docs and the ox_core recipe.
-Captured 2026-05-26 for FiveM Studio (bead `fivem-studio-ghg`).
+Captured 2026-05-26 for myRP.build.
 
 ## Sources
 
@@ -30,7 +30,7 @@ node_version '22'    -- bundled in recent FXServer artifacts
 
 - ox_core uses the **`mariadb` npm driver directly** (`server/db/pool.ts`) and
   oxmysql for everything else. **MariaDB is required** (not MySQL-only, not Dolt —
-  see `docs/dolt-mariadb-function-default-gap.md` / dolthub/dolt#11098).
+  see dolthub/dolt#11098, fixed in Dolt v2.0.8).
 - Import `ox_core/sql/install.sql` once. It `CREATE DATABASE`s and `USE`s a schema
   named **`overextended`** by default (the txAdmin recipe substitutes `{{dbName}}`).
 - At runtime ox_core also auto-creates two aux tables (`user_tokens`,
@@ -73,14 +73,16 @@ ensure ox_core
 
 `sv_enforceGameBuild 3258` is already required/standard and present in our cfg.
 
-## ox suite (added 2026-05-26, bead fivem-studio-h9j)
+## ox suite (added 2026-05-26)
 
-The Overextended ox suite on top of the core. Verified-loading versions + deps:
+The Overextended ox suite on top of the core. Verified-loading versions + deps
+(versions re-checked against upstream releases 2026-07-13 — only ox_inventory
+moved since the 2026-05-26 load test, a patch bump):
 
 | Resource | Ver | Depends on | SQL |
 |---|---|---|---|
 | ox_target | 1.18.1 | ox_lib | none |
-| ox_inventory | 2.47.8 | oxmysql, ox_lib, onesync | none (uses ox_core's `character_inventory`/`ox_inventory` tables) |
+| ox_inventory | 2.47.9 | oxmysql, ox_lib, onesync | none (uses ox_core's `character_inventory`/`ox_inventory` tables) |
 | ox_banking | 1.0.6 | ox_core, ox_lib, oxmysql, **ox_inventory** | none (uses ox_core `accounts*`) |
 | ox_commands | main | ox_lib | none |
 | ox_doorlock | 1.22.1 | oxmysql, ox_lib | **`sql/ox_doorlock.sql`** (schema; `default.sql`/`community_mrpd.sql` are optional sample doors) |

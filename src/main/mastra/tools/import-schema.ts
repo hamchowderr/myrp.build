@@ -1,5 +1,5 @@
 /**
- * import_schema tool (fivem-studio-h5k) — runs a resource's SQL schema against the
+ * import_schema tool — runs a resource's SQL schema against the
  * server's database so the agent finishes the job instead of telling the user to
  * "import sql/install.sql manually".
  *

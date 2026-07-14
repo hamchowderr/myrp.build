@@ -1,5 +1,5 @@
 /**
- * Cloud Supabase vector store for Mastra semantic recall (z8j8.4).
+ * Cloud Supabase vector store for Mastra semantic recall.
  *
  * Implements @mastra/core's abstract MastraVector against cloud Supabase pgvector
  * the SAME secure way as the memory adapter: reads go through an RLS-aware

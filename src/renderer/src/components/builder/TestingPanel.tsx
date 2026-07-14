@@ -1,5 +1,5 @@
 /**
- * TestingPanel (fivem-studio-ocl1) — one action: a full deploy + smoke-test
+ * TestingPanel — one action: a full deploy + smoke-test
  * across EVERY built resource. Ensures all resources on the running FXServer and
  * scans the console for load errors, then shows a clean per-resource pass/fail
  * list (failed rows expand to the error + console snippet). No manual category

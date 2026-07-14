@@ -5,6 +5,7 @@
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { Session } from "@mastra/core/agent-controller";
 import type { BrowserWindow, UtilityProcess } from "electron";
 import { app } from "electron";
 import { migrateSettings } from "../renderer/src/lib/server-registry";
@@ -12,13 +13,14 @@ import type { AppSettings, ServerContext, StreamMessage } from "../renderer/src/
 import { FxDkOrchestrator } from "./fxdk/fxdk-orchestrator";
 import { GameViewManager } from "./fxdk/gameview-manager";
 import { FxDkSession } from "./fxdk/session";
+import type { HarnessRuntime, HarnessWireEvent } from "./mastra/chat-harness";
 
 export const state = {
   mainWindow: null as BrowserWindow | null,
   cachedContext: null as ServerContext | null,
   persistentWorker: null as UtilityProcess | null,
   workerReady: false,
-  // Current Mastra conversation thread (oeb) — set on generate, reused by
+  // Current Mastra conversation thread — set on generate, reused by
   // follow-up ai:message turns so memory carries context. Null = no session.
   mastraThreadId: null as string | null,
   // Abort controller for the in-flight Mastra run (wired to ai:cancel).
@@ -26,6 +28,22 @@ export const state = {
   // Resolver for a pending sensitive-tool approval (wired to chat:approve).
   // Set while a gated tool is awaiting the user's approve/decline.
   pendingApproval: null as ((approved: boolean) => void) | null,
+  // The live Harness session for the in-flight chat turn (useHarness path).
+  // Set via runHarnessChat's onSession; used by harness:approve to answer a
+  // parked tool-approval gate (respondToToolApproval) and cleared after the run.
+  harnessSession: null as Session | null,
+  // The persistent Harness runtime for the active conversation. Built lazily
+  // on the first turn and REUSED across turns so an ask_user suspension can be
+  // answered (respondToToolSuspension needs the session + subscription to outlive
+  // the turn). Disposed on new-session / thread-switch / window-close.
+  harnessRuntime: null as HarnessRuntime | null,
+  // Set when a harness turn PARKS on ask_user: lets harness:respondSuspension
+  // forward the resumed run's events to the same sink and finalize (artifact manifest)
+  // once it completes. Cleared on resume-complete / cancel / new turn.
+  harnessResume: null as {
+    send: (event: HarnessWireEvent) => void;
+    complete: () => Promise<void>;
+  } | null,
 };
 
 export const fxdkSession = new FxDkSession();

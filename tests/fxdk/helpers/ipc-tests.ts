@@ -12,7 +12,7 @@ export async function testFxServerIpc() {
   const net = await import("node:net");
   const { FxServerIpc } = await import("../../../src/main/fxdk/fxserver-ipc");
 
-  const TEST_ID = `fivem-studio-test-${Date.now()}`;
+  const TEST_ID = `myrp-build-test-${Date.now()}`;
   const pipePath = `\\\\.\\pipe\\cfx-fxdk-fxserver-ipc-${TEST_ID}`;
 
   // Create a mock server that echoes messages

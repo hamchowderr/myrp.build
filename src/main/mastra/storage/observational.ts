@@ -1,5 +1,5 @@
 /**
- * Observational memory for the cloud adapter (z8j8.3) — parity with @mastra/pg
+ * Observational memory for the cloud adapter — parity with @mastra/pg
  * MemoryPG. The observe/buffer/reflect LOGIC lives in @mastra/memory; the storage
  * layer is mechanical CRUD on a single record. We persist the full
  * ObservationalMemoryRecord as a jsonb document (dates as ISO strings) and run the

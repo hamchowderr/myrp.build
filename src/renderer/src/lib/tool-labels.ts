@@ -1,5 +1,5 @@
 /**
- * Friendly labels for AI-Elements Tool headers (fivem-studio-k8v). Maps the raw
+ * Friendly labels for AI-Elements Tool headers. Maps the raw
  * Mastra workspace/skill tool names (the UIMessage tool part `type`, which is
  * `tool-<name>`) to short human verbs, and appends the relevant target (file
  * path / skill name / query) pulled from the tool input.
@@ -26,6 +26,22 @@ const VERBS: Record<string, string> = {
   skill_read: "Read skill",
 };
 
+/**
+ * Friendly names for the harness specialist subagents (ids match
+ * src/main/mastra/sub-agents.ts). The supervisor delegates via the built-in
+ * `subagent` tool with an `agentType` arg; without this the card just reads
+ * "subagent" and every delegation looks identical.
+ */
+const SPECIALISTS: Record<string, string> = {
+  "context-scout": "Context Scout",
+  "lua-specialist": "Lua Specialist",
+  "nui-specialist": "NUI Specialist",
+  "lore-specialist": "Lore Specialist",
+  validator: "Validator",
+  "security-auditor": "Security Auditor",
+  "docs-writer": "Docs Writer",
+};
+
 function field(input: unknown, keys: string[]): string | undefined {
   if (input && typeof input === "object") {
     const o = input as Record<string, unknown>;
@@ -39,6 +55,14 @@ function field(input: unknown, keys: string[]): string | undefined {
 /** Build a short, human-readable label for a tool part. */
 export function toolLabel(type: string, input: unknown): string {
   const raw = type === "dynamic-tool" ? "" : type.replace(/^tool-/, "");
+
+  // Delegation: name the specialist instead of the generic "subagent". The task
+  // itself shows in the card's expandable body (ToolInput).
+  if (raw === "subagent") {
+    const agentType = field(input, ["agentType", "agent", "type"]);
+    return (agentType && SPECIALISTS[agentType]) || (agentType ?? "Subagent");
+  }
+
   const verb = VERBS[raw] ?? raw.replace(/^mastra_workspace_/, "");
 
   // Skill tools carry a skill name; filesystem tools carry a path; search a query.

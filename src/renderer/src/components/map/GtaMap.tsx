@@ -16,12 +16,24 @@ import { ZonePolygonLayer } from "./ZonePolygonLayer";
 
 type MapStyle = "atlas" | "satellite" | "grid";
 
-// Tile-source base. Defaults to the locally-bundled tiles under
-// public/assets/maps. The open-source client ships WITHOUT the GTA map tiles
-// (that imagery is Rockstar's), so set VITE_MAP_TILE_BASE_URL to a tile server
-// — or drop your own tiles under public/assets/maps — to light up the map.
+// Tile-source base, resolved in priority order:
+//  1. VITE_MAP_TILE_BASE_URL — explicit override (e.g. a dedicated CDN).
+//  2. Packaged build (import.meta.env.PROD) — the installer does NOT bundle the
+//     tiles (they're ~318 MB of Rockstar imagery), so serve them from the cloud
+//     Supabase Storage public bucket "map-tiles", derived from the already-baked
+//     VITE_SUPABASE_URL. (Prod builds always carry the real cloud URL — the vite
+//     config refuses to package dev env values.)
+//  3. Dev server / fallback — the locally-bundled tiles under public/assets/maps.
+// The open-source client ships without tiles (that imagery is Rockstar's): set
+// VITE_MAP_TILE_BASE_URL, or drop your own tiles under public/assets/maps.
 // Trailing slashes are trimmed; "{z}/{x}/{y}" stay literal for Leaflet.
-const TILE_BASE = (import.meta.env.VITE_MAP_TILE_BASE_URL ?? "assets/maps").replace(/\/+$/, "");
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const TILE_BASE = (
+  import.meta.env.VITE_MAP_TILE_BASE_URL ??
+  (import.meta.env.PROD && SUPABASE_URL
+    ? `${SUPABASE_URL}/storage/v1/object/public/map-tiles`
+    : "assets/maps")
+).replace(/\/+$/, "");
 
 const MAP_STYLES: Array<{
   id: MapStyle;

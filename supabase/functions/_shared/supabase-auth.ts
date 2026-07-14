@@ -1,5 +1,5 @@
 // Shared Supabase JWT verification for Edge Functions that run with
-// verify_jwt=false (fivem-studio-gvh — native Supabase Auth replaced Clerk).
+// verify_jwt=false (native Supabase Auth replaced Clerk).
 //
 // We verify the user's access token with a service-role client: auth.getUser(jwt)
 // validates the token's signature + expiry against the project's keys and returns

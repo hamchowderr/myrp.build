@@ -1,5 +1,5 @@
 /**
- * Cloud Supabase memory storage adapter (M2.3 — fivem-studio-825).
+ * Cloud Supabase memory storage adapter.
  *
  * Implements the @mastra/core 1.41 abstract MemoryStorage set against cloud
  * Supabase, the SECURE way: reads go through the RLS-protected tables
@@ -14,7 +14,7 @@
  * and rows are mapped to the Mastra message shape (id, content, role, type,
  * createdAt, threadId, resourceId) via MessageList().add(..., "memory").get.all.db().
  *
- * Workflow snapshots are NOT here — they stay local (M1's InMemoryStore). Only
+ * Workflow snapshots are NOT here — they stay local (the InMemoryStore). Only
  * conversational memory is cloud-backed. This class owns threads, resources, and
  * clone; messages live in messages.ts (SupabaseMessageStorage) and observational
  * memory in observational.ts (SupabaseObservationalMemory), both extended here to
@@ -60,7 +60,7 @@ export class SupabaseMemoryStorage extends SupabaseMessageStorage {
   // message-domain methods (list/save/update + parseRow/normalize) from
   // SupabaseMessageStorage. This class owns threads, resources, and clone.
 
-  // Tables are created by migrations (M2.1), not at runtime. No-op init.
+  // Tables are created by migrations, not at runtime. No-op init.
   override async init(): Promise<void> {}
 
   /** Map a thread DB row to the Mastra StorageThreadType. */

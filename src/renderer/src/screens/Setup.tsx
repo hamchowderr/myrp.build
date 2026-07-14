@@ -75,7 +75,7 @@ export function Setup({ onComplete, isDark, onToggleTheme }: SetupProps) {
       await window.api.detectContext(serverPath);
       const serverExePath = (await window.api.findServerExe(serverPath)) ?? undefined;
       // Register the server into the existing registry (don't clobber any other
-      // configured servers); make it active. fivem-studio-m8se.1.
+      // configured servers); make it active.
       const current = (await window.api.loadSettings()) ?? emptySettings();
       const { settings } = addServer(current, serverPath, { serverExePath });
       await window.api.saveSettings(settings);

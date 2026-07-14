@@ -6,7 +6,7 @@
  * (mastra/tools/server-lifecycle.ts) drive the same implementation. The agent
  * runs in the main process, so it calls these directly.
  *
- * See vault: "FiveM Studio - Agent Server Interaction" (the 2026-05-23 contract,
+ * See vault: "myRP.build - Agent Server Interaction" (the 2026-05-23 contract,
  * amended 2026-05-26 to let the agent manage server lifecycle behind approval).
  */
 
@@ -57,7 +57,7 @@ export async function startFxServer(): Promise<{ ok: boolean; error?: string }> 
       return { ok: false, error: "FXServer executable path not configured in Settings." };
     }
 
-    // Kill any orphaned restart-loop wrappers FIRST (e4c) — a stale wrapper
+    // Kill any orphaned restart-loop wrappers FIRST — a stale wrapper
     // cmd.exe would otherwise respawn the FXServer.exe we kill next. Tree-kill
     // takes down the wrapper and its child together.
     for (const pid of await findOrphanWrapperPids()) {
@@ -100,7 +100,7 @@ export async function stopFxServer(): Promise<{ ok: boolean; error?: string }> {
   }
 
   // No managed session — tear down any orphaned restart-loop wrappers FIRST
-  // (e4c) so the loop can't respawn the FXServer.exe we kill next.
+  // so the loop can't respawn the FXServer.exe we kill next.
   const wrapperPids = await findOrphanWrapperPids();
   for (const pid of wrapperPids) {
     log.info(`[server-control] Tree-killing external wrapper PID ${pid}`);

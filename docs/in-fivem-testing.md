@@ -106,8 +106,8 @@ back to the agent to regenerate/fix, then re-run both layers.
 - Layer 1 belongs in the everyday loop (cheap, no client). Layer 2 is a pre-release /
   pre-"done" gate for any resource a user will actually run.
 
-## Roadmap (epic `fivem-studio-5hx`)
-- ✅ Deploy & smoke-test core (`m7f`)
-- ⬜ Smoke-test UI trigger + agent self-verify tool (`m7f`)
+## Roadmap
+- ✅ Deploy & smoke-test core
+- ⬜ Smoke-test UI trigger + agent self-verify tool
 - ⬜ Server-side functional probes — trigger a resource's commands/exports via RCON and
-  check console/DB responses, narrowing the manual surface (`al1`)
+  check console/DB responses, narrowing the manual surface

@@ -272,7 +272,7 @@ export const MessageBranchPage = ({ className, ...props }: MessageBranchPageProp
 
 export type MessageResponseProps = ComponentProps<typeof Streamdown>;
 
-// Only the code (shiki) plugin — see reasoning.tsx; mermaid/math/cjk dropped (bss).
+// Only the code (shiki) plugin — see reasoning.tsx; mermaid/math/cjk dropped.
 const streamdownPlugins = { code };
 
 export const MessageResponse = memo(

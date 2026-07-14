@@ -1,5 +1,5 @@
 /**
- * txAdmin in-app login (zero-password) — fivem-studio-dt2.
+ * txAdmin in-app login (zero-password).
  *
  * Opens a real Electron BrowserWindow on a PERSISTENT partition pointed at the
  * txAdmin web panel and lets the user authenticate however they like — in

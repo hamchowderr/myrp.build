@@ -1,7 +1,7 @@
 import type { PromptHistoryEntry } from "@renderer/lib/types";
 import { useCallback, useRef, useState } from "react";
 
-const HISTORY_KEY = "fivem-studio-prompt-history";
+const HISTORY_KEY = "myrp-build-prompt-history";
 const HISTORY_MAX = 20;
 
 function loadHistory(): PromptHistoryEntry[] {

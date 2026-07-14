@@ -1,12 +1,12 @@
 /**
- * Generation logging + feedback capture (fivem-studio-zhk.9).
+ * Generation logging + feedback capture.
  *
  * Records every resource generation to the local Postgres `generation_logs`
  * table and lets the renderer attach a thumbs up/down rating afterward. This is
  * the implicit/explicit quality signal that seeds the OWNER's fine-tune dataset
- * (zhk.10) — an ops/dev concern, NOT a per-user prod feature.
+ * — an ops/dev concern, NOT a per-user prod feature.
  *
- * DEV-ONLY (M3.4 — fivem-studio-dhq): this is the last remaining runtime
+ * DEV-ONLY: this is the last remaining runtime
  * RAG_DATABASE_URL consumer. It writes via a direct `pg` connection (a DB
  * credential that must NEVER ship), so it is hard-gated to dev (`__DEV_BYPASS__`)
  * in addition to the env gate. In a packaged build dotenv never loads
@@ -36,8 +36,8 @@ export interface GenerationLogRecord {
 export type Rating = "up" | "down";
 
 /** Open a short-lived client to the generation-log DB, or null if unconfigured.
- *  Dev/ops-only: never opens a direct DB connection from a packaged build (M3.4 —
- *  no DB credential ships; RAG_DATABASE_URL is dev-only). */
+ *  Dev/ops-only: never opens a direct DB connection from a packaged build
+ *  (no DB credential ships; RAG_DATABASE_URL is dev-only). */
 async function connect(): Promise<Client | null> {
   if (!__DEV_BYPASS__) return null;
   const url = process.env.RAG_DATABASE_URL;

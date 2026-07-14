@@ -1,7 +1,7 @@
 /**
- * Deploy / monitor panel (fivem-studio-dnx8.5).
+ * Deploy / monitor panel.
  *
- * Per-server control surface over the txAdmin/RCON work (e4c/dt2): live status,
+ * Per-server control surface over the txAdmin/RCON work: live status,
  * server start/stop/restart, per-resource start/stop/restart toggles, and the
  * live server console. Composes existing hooks/IPC (useServerProcess,
  * useServerStatus, useServerConsole, useFileTree.controlResource,

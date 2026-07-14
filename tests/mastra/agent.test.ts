@@ -23,10 +23,10 @@ describe("FiveM supervisor agent via AIMock", () => {
     await ws.destroy();
   });
 
-  // The point of this test: prove the harness wiring + that the
-  // `anthropic/*` magic string resolves and routes through ANTHROPIC_BASE_URL
-  // (the question deferred from 55x.3). A plain-text fixture keeps it free of
-  // tool-call fixtures — those come with the runGeneration tests (55x.21).
+  // The point of this test: prove the harness wiring + that the model resolves
+  // and routes through OPENAI_BASE_URL → AIMock (OpenAI Chat Completions, its
+  // native protocol). A plain-text fixture keeps it free of tool-call fixtures —
+  // those come with the runGeneration tests.
   it("resolves the anthropic model and streams a mocked response", async () => {
     const agent = createFiveMAgent(ws);
     const result = await agent.stream("ping");
@@ -34,7 +34,7 @@ describe("FiveM supervisor agent via AIMock", () => {
     expect(text).toContain("pong");
   });
 
-  it("wires a TokenLimiter input processor (55x.9 context-window cap)", async () => {
+  it("wires a TokenLimiter input processor (context-window cap)", async () => {
     const agent = createFiveMAgent(ws);
     const procs = await agent.listConfiguredInputProcessors();
     expect(procs.some((p) => p instanceof TokenLimiter)).toBe(true);
@@ -46,7 +46,7 @@ describe("FiveM supervisor agent via AIMock", () => {
     expect(Object.keys(subAgents ?? {})).toHaveLength(0);
   });
 
-  it("wires the 7 specialist sub-agents when opted in (55x.24)", async () => {
+  it("wires the 7 specialist sub-agents when opted in", async () => {
     const agent = createFiveMAgent(ws, { useSubAgents: true });
     const subAgents = await agent.listAgents();
     expect(Object.keys(subAgents ?? {}).sort()).toEqual(

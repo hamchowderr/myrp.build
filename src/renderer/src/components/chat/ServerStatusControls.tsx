@@ -52,7 +52,7 @@ export function ServerStatusControls({
 
   // The whole-server Restart is a txAdmin-only control. A direct-launched FXServer
   // has no txAdmin, so show Restart only when txAdmin is actually reachable —
-  // otherwise it dead-ends on ERR_CONNECTION_REFUSED (fivem-studio-92fh).
+  // otherwise it dead-ends on ERR_CONNECTION_REFUSED.
   const [txAvailable, setTxAvailable] = useState(false);
   useEffect(() => {
     if (!running) {

@@ -11,7 +11,7 @@ Thanks for your interest in building myRP.build. This guide covers local setup, 
 - **Windows 10/11** (the app uses Win32 FFI for the FXDK integration; Linux support is on the roadmap)
 - **Node.js 20+**
 - A **FiveM server** running locally — or a path to one's `resources/` folder
-- An API key for at least one supported provider (default config expects `ANTHROPIC_API_KEY`)
+- A **Vercel AI Gateway key** (`VERCEL_GATEWAY_KEY`, free monthly credits at [vercel.com/ai-gateway](https://vercel.com/ai-gateway)). All inference routes through the Vercel AI SDK gateway — there is no bare-provider fallback.
 
 ## 2. Setup
 

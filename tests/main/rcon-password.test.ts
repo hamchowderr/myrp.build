@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// fivem-studio-92fh: rcon_password resolution must (1) accept the `set ` convar
+// rcon_password resolution must (1) accept the `set ` convar
 // prefix and (2) follow server.cfg `exec`/`@include` into the gitignored secrets
 // cfg where the password actually lives. fs is mocked so the test is hermetic.
 

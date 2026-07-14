@@ -60,8 +60,8 @@ Deno.serve(async (req) => {
       return json({ error: "only the workspace owner can manage billing" }, 403);
     }
 
-    // Get a VALID Stripe customer, self-healing a stale/deleted reference
-    // (fivem-studio-cxd). Covers comped/owner accounts (mint on demand so the
+    // Get a VALID Stripe customer, self-healing a stale/deleted reference.
+    // Covers comped/owner accounts (mint on demand so the
     // 'Manage' button never 404s, tc6) AND the test->live / account-switch case
     // where the stored id no longer exists in the active account.
     const customerId = await getOrCreateCustomer(stripe, supabase, workspace_id, email);

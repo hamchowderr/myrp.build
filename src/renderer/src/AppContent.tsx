@@ -1,8 +1,8 @@
 /**
  * The actual app shell — setup wizard, settings, and the Generator — with screen
  * routing, settings load, theme, and the welcome tour. Deliberately free of any
- * Clerk/Supabase imports so it renders in BOTH paths: the dev-bypass branch
- * (App.tsx) and, after sign-in, the lazy auth branch (AuthApp.tsx). See lwt.
+ * auth/Supabase imports so it renders in BOTH paths: the dev-bypass branch
+ * (App.tsx) and, after sign-in, the lazy auth branch (AuthApp.tsx).
  */
 
 import { CommandPalette } from "@renderer/components/CommandPalette";
@@ -29,7 +29,7 @@ export function AppContent(): React.JSX.Element {
   const [isDark, setIsDark] = useState(true);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
-  // Global Cmd/Ctrl-K toggles the command palette (dnx8.1).
+  // Global Cmd/Ctrl-K toggles the command palette.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
@@ -148,7 +148,7 @@ export function AppContent(): React.JSX.Element {
 
   // Sync dark mode to localStorage
   useEffect(() => {
-    const stored = localStorage.getItem("fivem-studio-dark");
+    const stored = localStorage.getItem("myrp-build-dark");
     if (stored !== null) {
       setIsDark(stored === "true");
     }
@@ -157,7 +157,7 @@ export function AppContent(): React.JSX.Element {
   function toggleTheme() {
     setIsDark((prev) => {
       const next = !prev;
-      localStorage.setItem("fivem-studio-dark", String(next));
+      localStorage.setItem("myrp-build-dark", String(next));
       return next;
     });
   }
@@ -246,7 +246,7 @@ export function AppContent(): React.JSX.Element {
   const backToDashboard = () => setCurrentScreen("dashboard");
 
   // Global command palette + the dashboard element are shared across the
-  // app-shell screens (dnx8.1). settings is non-null past the setup guard above.
+  // app-shell screens. settings is non-null past the setup guard above.
   const palette = (
     <CommandPalette
       settings={settings}

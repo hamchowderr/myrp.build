@@ -29,7 +29,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
   console.log("attached to:", page.url());
   await page.bringToFront().catch(() => {});
 
-  // Opt into the AI-Elements chat (fivem-studio-k8v) when AE=1.
+  // Opt into the AI-Elements chat when AE=1.
   if (process.env.AE === "1") {
     await page.evaluate(() => localStorage.setItem("ae-chat", "1"));
     await page.reload();

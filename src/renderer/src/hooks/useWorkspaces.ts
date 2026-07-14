@@ -1,5 +1,5 @@
 /**
- * Active-workspace state + the workspace list (teams epic 1gf, fivem-studio-nqy).
+ * Active-workspace state + the workspace list (teams epic).
  *
  * The single source of truth for "which workspace is active" lives in
  * app_users.active_workspace_id (persisted server-side). This hook:

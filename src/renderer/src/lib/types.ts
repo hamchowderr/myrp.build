@@ -2,8 +2,8 @@
  * One registered FiveM server. The local registry (AppSettings.servers) is the
  * SINGLE source of truth for per-server connection config — these are all
  * machine-local (file paths, 127.0.0.1 URLs, secrets) and are NEVER mirrored to
- * the cloud `servers` table (which holds only memory-scoping identity). See
- * fivem-studio-m8se.1. Derived data (framework/db/inventory from server.cfg, run
+ * the cloud `servers` table (which holds only memory-scoping identity).
+ * Derived data (framework/db/inventory from server.cfg, run
  * status from txAdmin) is read live at display time, not stored here.
  */
 export interface ServerRecord {
@@ -28,6 +28,7 @@ export interface AppSettings {
   activeServerId: string | null; // which registered server is currently selected
   apiKey?: never; // never stored in settings — always from .env
   requireApproval?: boolean; // app-level: gate sensitive ops (shell/delete) behind approve/decline
+  useHarness?: boolean; // alpha: route chat through the Mastra Harness instead of agent.stream. Default-OFF; env MYRP_USE_HARNESS=1 also enables it for dev.
 }
 
 export interface ServerPingResult {
@@ -35,7 +36,7 @@ export interface ServerPingResult {
   hostname?: string;
 }
 
-/** Result of scaffolding a fresh ox server folder (fivem-studio-m8se.4). */
+/** Result of scaffolding a fresh ox server folder. */
 export interface ScaffoldResult {
   serverPath: string;
   serverCfgPath: string;
@@ -160,7 +161,7 @@ export interface ConsoleEntry {
   timestamp: number;
 }
 
-// ---- Deploy smoke-test (fivem-studio-m7f) ----
+// ---- Deploy smoke-test ----
 
 /** Result of deploying a resource to the FXServer and scanning the console. */
 export interface SmokeResult {

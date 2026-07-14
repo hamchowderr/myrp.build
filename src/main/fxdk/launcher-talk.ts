@@ -19,7 +19,7 @@ interface LauncherTalkEvents {
 }
 
 /**
- * IPC bridge between the SDK host (FiveM Studio) and the game process,
+ * IPC bridge between the SDK host (myRP.build) and the game process,
  * mirroring FxDK's `LauncherIPC` (nng pair1 + msgpack).
  *
  * Wire protocol:

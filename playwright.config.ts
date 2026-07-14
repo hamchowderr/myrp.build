@@ -13,7 +13,7 @@ export default defineConfig({
   fullyParallel: false, // Electron tests bind real Windows resources — serialize
   workers: 1,
   reporter: [["list"]],
-  timeout: 90_000, // packaged Electron cold-start + Clerk mount can be ~10s
+  timeout: 90_000, // packaged Electron cold-start + Supabase auth gate mount can be ~10s
   use: {
     trace: "on-first-retry",
   },

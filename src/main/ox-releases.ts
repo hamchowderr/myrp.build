@@ -1,6 +1,6 @@
 /**
  * Curated ox-ecosystem release downloads (shared by the agent's install_resource
- * tool and the new-server scaffolder, m8se.4).
+ * tool and the new-server scaffolder).
  *
  * Only the official Overextended / CommunityOx release zips — no arbitrary URLs
  * (no supply-chain surface). Windows-only extraction via .NET ZipFile, which

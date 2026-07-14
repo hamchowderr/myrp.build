@@ -305,7 +305,7 @@ fx_version 'cerulean'
 game 'gta5'
 lua54 'yes'
 
-author 'FiveM Studio'
+author 'myRP.build'
 description 'Custom HUD'
 version '1.0.0'
 

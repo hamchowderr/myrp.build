@@ -1,14 +1,14 @@
 /**
- * Cloud Mastra memory store factory (M2.3 — fivem-studio-825).
+ * Cloud Mastra memory store factory.
  *
  * Composes a MastraCompositeStore whose `memory` domain is the cloud Supabase
  * adapter and whose `workflows` domain stays LOCAL (a fresh InMemoryStore's
  * workflows domain). This is the storage routing decision from the plan:
  * conversational memory is durable + per-tenant in the cloud, while workflow
- * approval snapshots remain in-process (M1) — single-turn suspend/resume needs
+ * approval snapshots remain in-process — single-turn suspend/resume needs
  * no network round-trip and previously crashed packaged builds.
  *
- * `disableInit: true` because the cloud tables are created by migrations (M2.1),
+ * `disableInit: true` because the cloud tables are created by migrations,
  * never at runtime — the JWT-scoped client has no DDL rights anyway.
  */
 import { InMemoryStore, MastraCompositeStore } from "@mastra/core/storage";

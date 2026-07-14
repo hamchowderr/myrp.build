@@ -1,5 +1,5 @@
 /**
- * Pure console-scan logic for the deploy smoke-test (fivem-studio-m7f).
+ * Pure console-scan logic for the deploy smoke-test.
  *
  * Split out from smoke-test.ts so it has ZERO runtime imports (only a type-only
  * import, erased at compile) and can be unit-tested without pulling in

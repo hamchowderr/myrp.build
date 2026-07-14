@@ -192,7 +192,7 @@ export type ReasoningContentProps = ComponentProps<typeof CollapsibleContent> & 
 
 // Only the code (shiki) plugin — FiveM output is Lua/SQL/HTML, never mermaid
 // diagrams / math / CJK, so those plugins (mermaid+d3+cytoscape, katex) were
-// dead startup weight and were dropped (bss).
+// dead startup weight and were dropped.
 const streamdownPlugins = { code };
 
 export const ReasoningContent = memo(({ className, children, ...props }: ReasoningContentProps) => (

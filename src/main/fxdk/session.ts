@@ -36,7 +36,7 @@ function makeEntry(source: ConsoleEntry["source"], text: string): ConsoleEntry {
 
 export class FxDkSession extends EventEmitter {
   private _state: SessionState = "idle";
-  /** The wrapper cmd.exe process (runs the restart-loop .bat) — see e4c. */
+  /** The wrapper cmd.exe process (runs the restart-loop .bat). */
   private child: ChildProcess | null = null;
   /** PID of the wrapper cmd.exe; stable across FXServer restarts inside the loop. */
   private wrapperPid: number | null = null;
@@ -102,7 +102,7 @@ export class FxDkSession extends EventEmitter {
       // Build args: +set citizen_dir tells FXServer where its runtime files are
       const args = ["+set", "citizen_dir", citizenDir, "+exec", serverCfg];
 
-      // Launch FXServer via the restart-loop wrapper (fivem-studio-e4c) rather
+      // Launch FXServer via the restart-loop wrapper rather
       // than FXServer.exe directly, so a txAdmin full-restart (which exits the
       // FXServer process) is relaunched by the loop. We track the wrapper
       // cmd.exe PID and tree-kill it on Stop so the loop cannot respawn.
@@ -240,7 +240,7 @@ export class FxDkSession extends EventEmitter {
 
       // Tree-kill the wrapper cmd.exe + its FXServer.exe child. A plain
       // SIGTERM on cmd.exe alone would leave FXServer.exe running and the loop
-      // would respawn it — so we must take down the whole tree (e4c).
+      // would respawn it — so we must take down the whole tree.
       if (wrapperPid) {
         void treeKill(wrapperPid).then((ok) => {
           if (!ok) {

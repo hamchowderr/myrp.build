@@ -1,6 +1,6 @@
 /**
  * Server-side <turn> attribution + working-memory participants template for
- * shared team threads (M3.2 — fivem-studio-lbe).
+ * shared team threads.
  *
  * Teams share ONE Mastra thread per workspace+server (resourceId =
  * `ws_<ws>__srv_<srv>`). Because every member's messages land in the same thread,

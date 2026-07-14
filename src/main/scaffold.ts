@@ -1,5 +1,5 @@
 /**
- * New-server scaffolder (multi-server epic, fivem-studio-m8se.4).
+ * New-server scaffolder (multi-server epic).
  *
  * Creates a fresh server folder: starter server.cfg + resources/[local] +
  * resources/[ox], with the ox base (ox_lib, oxmysql, ox_core, ox_inventory)

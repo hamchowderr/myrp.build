@@ -1,5 +1,5 @@
 /**
- * Server registry helpers (fivem-studio-m8se.1).
+ * Server registry helpers.
  *
  * AppSettings.servers is the SINGLE on-disk source of truth for per-server
  * connection config. These pure helpers are shared by the main process (disk

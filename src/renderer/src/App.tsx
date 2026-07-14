@@ -1,11 +1,11 @@
 /**
- * Root router (fivem-studio-lwt).
+ * Root router.
  *
  *  - DEV BYPASS (window.api.isDevBypass — owner runs on a local ANTHROPIC_API_KEY /
- *    FIVEM_STUDIO_DEV): render AppContent directly with the dev account stub. Clerk
- *    and Supabase are NEVER imported, so they stay out of the startup bundle and
+ *    FIVEM_STUDIO_DEV): render AppContent directly with the dev account stub. Supabase Auth
+ *    and billing are NEVER imported, so they stay out of the startup bundle and
  *    local testing skips sign-in entirely.
- *  - PRODUCTION (no local key): lazy-load AuthApp, which pulls in Clerk + Supabase
+ *  - PRODUCTION (no local key): lazy-load AuthApp, which pulls in Supabase Auth + billing
  *    and gates the app behind sign-in + usage/billing.
  */
 import { ActiveThemeProvider } from "@renderer/components/active-theme";

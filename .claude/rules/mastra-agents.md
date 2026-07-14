@@ -5,7 +5,7 @@ paths:
 ---
 # Mastra generation pipeline
 
-Generation runs on **Mastra** (`@mastra/core`) + the **Vercel AI SDK v6** — NOT the Claude Agent SDK. There is no `query()`, no `src/main/agents/`, no `src/main/prompts/layer1-role.ts` (all migrated; don't reintroduce them).
+Generation runs on **Mastra** (`@mastra/core`) + the **Vercel AI SDK v7** — NOT the Claude Agent SDK. There is no `query()`, no `src/main/agents/`, no `src/main/prompts/layer1-role.ts` (all migrated; don't reintroduce them).
 
 - `agent.ts` — builds the supervisor `Agent`. Model is constructed via `createGateway` (Vercel AI Gateway → multi-provider) when a proxy/gateway key is present, else the bare model id. Keeps `instructions.providerOptions.anthropic.cacheControl` (the gateway forwards it to Anthropic; other providers namespace-ignore it).
 - `workspace.ts` — Mastra Workspace; derives the agent's filesystem/search/sandbox tools. `skillPaths` = `oxSkillPaths(<root skills/>)`; `OX_SKILLS` is the ox-only allowlist.

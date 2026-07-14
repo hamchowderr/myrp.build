@@ -3,7 +3,7 @@ import type { RunStorageContext } from "../../src/main/mastra/storage/context";
 import { SupabaseMemoryStorage } from "../../src/main/mastra/storage/memory";
 import type { RunSupabaseClient } from "../../src/main/mastra/storage/supabase-client";
 
-// fivem-studio-liza: SupabaseMemoryStorage.cloneThread is our cloud implementation
+// SupabaseMemoryStorage.cloneThread is our cloud implementation
 // of Mastra's native clone primitive (Memory.cloneThread() delegates to it). It is
 // composed from existing primitives — RLS reads + SECURITY DEFINER save RPCs — so
 // here we stub the run client and assert it reproduces @mastra/pg MemoryPG semantics:
@@ -97,7 +97,7 @@ function makeCtx(): { ctx: RunStorageContext; rpcCalls: RpcCall[] } {
   return { ctx, rpcCalls };
 }
 
-describe("SupabaseMemoryStorage.cloneThread (fivem-studio-liza)", () => {
+describe("SupabaseMemoryStorage.cloneThread", () => {
   it("clones a thread with native Mastra semantics", async () => {
     const { ctx, rpcCalls } = makeCtx();
     const store = new SupabaseMemoryStorage(ctx);

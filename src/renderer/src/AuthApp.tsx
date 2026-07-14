@@ -1,12 +1,12 @@
 /**
- * Production auth + billing shell (fivem-studio-lwt; migrated off Clerk in gvh).
+ * Production auth + billing shell (native Supabase Auth).
  * Lazily imported by App.tsx ONLY when NOT in dev-bypass — so @supabase stays out
  * of the startup chunk for local owner testing.
  *
  * Identity is native Supabase Auth (Discord OAuth, PKCE). The session is durable
  * in Electron via the custom storage adapter on the Supabase client
  * (lib/supabase.ts), so it survives reload / >60s refresh / relaunch — the failure
- * mode that killed Clerk here. On sign-in the handle_new_user() DB trigger
+ * mode that broke the prior in-memory auth here. On sign-in the handle_new_user() DB trigger
  * provisions the user + personal workspace; this shell just reads the JWT-scoped
  * subscription (get_subscription) and exposes Stripe checkout/portal + the account
  * slot to AppContent.
@@ -15,15 +15,6 @@ import { ActiveThemeProvider } from "@renderer/components/active-theme";
 import { PendingInvitations } from "@renderer/components/team/PendingInvitations";
 import { TeamManagementDialog } from "@renderer/components/team/TeamManagementDialog";
 import { WorkspaceSwitcher } from "@renderer/components/team/WorkspaceSwitcher";
-import { Avatar, AvatarFallback, AvatarImage } from "@renderer/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@renderer/components/ui/dropdown-menu";
 import { Skeleton } from "@renderer/components/ui/skeleton";
 import { useWorkspaces } from "@renderer/hooks/useWorkspaces";
 import { AccountContext, type AccountValue, type PaidTier, type Plan } from "@renderer/lib/account";
@@ -55,53 +46,6 @@ const DEFAULT_SUB: SubState = {
 };
 
 /**
- * Account button: the signed-in user's Discord avatar (falling back to their
- * initial) with a sign-out menu, built from headless Supabase APIs (no prebuilt
- * UI lib to load). The avatar/name come from the Discord OAuth identity
- * (user_metadata.avatar_url / full_name — fivem-studio-c4c). signOut() clears the
- * persisted session; AuthGate's onAuthStateChange flips back to the sign-in UI.
- */
-function AccountButton({
-  email,
-  avatarUrl,
-  name,
-}: {
-  email: string;
-  avatarUrl?: string;
-  name?: string;
-}): React.JSX.Element {
-  const initial = ((name || email).trim()[0] ?? "U").toUpperCase();
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label="Account menu"
-        >
-          <Avatar className="size-7">
-            {avatarUrl ? <AvatarImage src={avatarUrl} alt={name || email} /> : null}
-            <AvatarFallback>{initial}</AvatarFallback>
-          </Avatar>
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        {name || email ? (
-          <DropdownMenuLabel className="flex flex-col">
-            {name ? <span className="truncate font-medium">{name}</span> : null}
-            {email ? (
-              <span className="truncate text-xs font-normal text-muted-foreground">{email}</span>
-            ) : null}
-          </DropdownMenuLabel>
-        ) : null}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => void supabase?.auth.signOut()}>Sign out</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-/**
  * Supplies the real AccountContext value: the JWT-scoped subscription
  * (get_subscription, RLS by auth.uid()) plus Stripe checkout/portal actions and
  * the access-token getter for the inference proxy.
@@ -117,7 +61,7 @@ function SupabaseAccountProvider({
   const [billingError, setBillingError] = useState<string | null>(null);
   const [teamOpen, setTeamOpen] = useState(false);
   const email = session.user.email ?? "";
-  // Active-workspace state (teams epic 1gf, nqy): the list + the persisted active
+  // Active-workspace state (teams epic): the list + the persisted active
   // pointer. activeWorkspaceId drives the subscription re-fetch below, so the
   // switcher is the single source of truth for plan/usage/checkout/portal.
   const {
@@ -128,7 +72,7 @@ function SupabaseAccountProvider({
     switchWorkspace,
     refresh: refreshWorkspaces,
   } = useWorkspaces();
-  // Discord OAuth identity (fivem-studio-c4c): avatar + display name ride in
+  // Discord OAuth identity: avatar + display name ride in
   // user_metadata (avatar_url/picture, full_name/name). Used for the profile photo.
   const meta = (session.user.user_metadata ?? {}) as Record<string, unknown>;
   const avatarUrl =
@@ -140,7 +84,7 @@ function SupabaseAccountProvider({
     (typeof meta.name === "string" && meta.name) ||
     undefined;
 
-  // Subscription/usage for the ACTIVE workspace (teams epic 1gf, nqy + 7da):
+  // Subscription/usage for the ACTIVE workspace (teams epic):
   // re-fetched whenever the active workspace changes, so switching workspaces
   // switches the plan/usage shown and the workspace billing acts on. Waits for the
   // active id to resolve (null while the list loads) to avoid a personal-default
@@ -193,7 +137,7 @@ function SupabaseAccountProvider({
         setBillingError("Couldn't load your workspace — reopen Settings and try again.");
         return;
       }
-      // Owner-only billing (teams epic 1gf, 7da): the edge fns enforce this with a
+      // Owner-only billing (teams epic): the edge fns enforce this with a
       // 403, but surface it client-side too so a Developer sees a clear reason
       // rather than a failed invoke. Personal workspaces are always owner-held.
       if (activeRole && activeRole !== "owner") {
@@ -236,22 +180,25 @@ function SupabaseAccountProvider({
       billingError,
       avatarUrl,
       displayName: name,
-      // The account slot bundles the pending-invite bell (96l), the workspace
-      // switcher (nqy), and the avatar/sign-out menu (c4c) in the chat footer's
-      // account region. The switcher's "Manage team" opens the team dialog (nev).
+      // The account slot bundles the pending-invite bell and the workspace
+      // switcher in the chat footer. The Discord avatar/account menu was
+      // removed from the chat (poor UX); Sign out now lives in Settings → Profile
+      // via the account context's signOut. The switcher's "Manage team" opens the
+      // team dialog.
       accountSlot: (
         <>
           <PendingInvitations onAccepted={() => void refreshWorkspaces()} />
           <WorkspaceSwitcher onManageTeam={() => setTeamOpen(true)} />
-          <AccountButton email={email} avatarUrl={avatarUrl} name={name} />
         </>
       ),
       getToken,
+      signOut: async () => {
+        await supabase?.auth.signOut();
+      },
     }),
     [
       sub,
       openFn,
-      email,
       avatarUrl,
       name,
       getToken,
@@ -267,7 +214,7 @@ function SupabaseAccountProvider({
   return (
     <AccountContext.Provider value={value}>
       {children}
-      {/* Team management dialog (nev) — mounted once, opened from the switcher. */}
+      {/* Team management dialog — mounted once, opened from the switcher. */}
       <TeamManagementDialog open={teamOpen} onOpenChange={setTeamOpen} />
     </AccountContext.Provider>
   );

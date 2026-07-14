@@ -57,7 +57,7 @@ export function registerFxdkHandlers(): void {
 
   // Deploy & smoke-test: ensure the resource, then scan the server console for
   // load errors (Lua/deps/parse) → structured pass/fail. Reads port/rcon from
-  // settings so the caller only passes the resource name. (fivem-studio-m7f)
+  // settings so the caller only passes the resource name.
   ipcMain.handle("server:smokeTest", async (_event, resourceName: string) => {
     const server = getActiveServer(await readSettings());
     if (!server) {
@@ -79,7 +79,7 @@ export function registerFxdkHandlers(): void {
 
   // Full deploy & smoke-test: ensure EVERY built resource and scan once for load
   // errors → per-resource pass/fail. The caller passes the resource list (it has
-  // it from the file tree); port/rcon come from the active server. (fivem-studio-ocl1)
+  // it from the file tree); port/rcon come from the active server.
   ipcMain.handle("server:smokeTestAll", async (_event, resourceNames: string[]) => {
     const server = getActiveServer(await readSettings());
     if (!server) {

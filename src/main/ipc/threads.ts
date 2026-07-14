@@ -1,5 +1,5 @@
 /**
- * IPC bridge for persisted conversation management (eh2g #2).
+ * IPC bridge for persisted conversation management.
  *
  * The cloud memory backend (SupabaseMemoryStorage) already implements
  * list/load/rename/delete with per-workspace RLS scoping; the renderer just had
@@ -142,7 +142,7 @@ export function registerThreadHandlers(): void {
   );
 
   // Load a thread's full message history as AI SDK v6 UI messages, ready to seed
-  // straight into the renderer's useChat via setMessages (eh2g #3). Same shape
+  // straight into the renderer's useChat via setMessages. Same shape
   // the live stream produces, so reopening a conversation renders identically.
   ipcMain.handle(
     "chat:loadThread",
@@ -210,7 +210,7 @@ export function registerThreadHandlers(): void {
     },
   );
 
-  // Search this resource's conversations by title + message content (eh2g #4).
+  // Search this resource's conversations by title + message content.
   // One SECURITY DEFINER RPC (mastra_search_messages) does the membership-checked
   // jsonb scan + snippet server-side — PostgREST can't ILIKE a jsonb column from
   // the client. Covers archived threads too (the UI can badge them).
@@ -247,7 +247,7 @@ export function registerThreadHandlers(): void {
     },
   );
 
-  // Archive / restore a thread (eh2g #6). No schema change — the archived state
+  // Archive / restore a thread. No schema change — the archived state
   // lives in the thread's metadata.archivedAt (mastra_update_thread merges it).
   // The existing title is preserved (coalesce keeps it if we pass the current
   // value), so archiving never disturbs the generated title.
@@ -275,7 +275,7 @@ export function registerThreadHandlers(): void {
     },
   );
 
-  // Dynamic follow-up suggestions (zjni): after a turn completes, the cheap
+  // Dynamic follow-up suggestions: after a turn completes, the cheap
   // observer model proposes 3-4 next-step prompts grounded in what was just
   // built, surfaced as clickable chips under the last reply. Best-effort — any
   // failure (no model, no memory, parse miss) degrades to [] so the chat is

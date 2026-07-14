@@ -7,7 +7,7 @@ import {
   tagUserMessage,
 } from "../../src/main/mastra/storage/turn-tag";
 
-// M3.2 (fivem-studio-lbe): shared team threads tag each user message with a
+// Shared team threads tag each user message with a
 // <turn> element built from the AUTHENTICATED identity. A single process can't
 // stage a real two-user thread, so we verify the tag is built/escaped correctly
 // and the working-memory participants template is well-formed.

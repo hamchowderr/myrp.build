@@ -1,0 +1,48 @@
+# E2E variant of electron-builder.nosign.yml.
+#
+# Playwright's _electron.launch attaches to a packaged app over the Node inspector.
+# The shipping configs harden that away (enableNodeCliInspectArguments:false +
+# runAsNode:false), so Playwright can't attach to the real installer's exe — the
+# prod-flow smoke would just time out. This variant re-enables ONLY those two
+# inspector fuses so `npm run test:e2e` can drive the packaged app; EVERYTHING else
+# (files, asarUnpack, extraResources, fuses) mirrors the nosign config, so the build
+# under test is otherwise identical to what ships. Never use this for a release.
+#
+# Build with `npm run build:unpack:e2e`, then `npm run test:e2e`.
+appId: com.otakusolutions.myrp-build
+productName: myRP.build
+directories:
+  buildResources: build
+afterPack: ./build/prune-native.cjs
+beforePack: ./build/prefetch-bundled-assets.cjs
+electronFuses:
+  runAsNode: true # E2E-ONLY: Playwright needs to bootstrap the main process
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: true # E2E-ONLY: Playwright attaches over the inspector
+  enableCookieEncryption: true
+  enableEmbeddedAsarIntegrityValidation: false
+  onlyLoadAppFromAsar: false
+  loadBrowserProcessSpecificV8Snapshot: false
+  grantFileProtocolExtraPrivileges: true
+files:
+  - "out/**"
+  - "package.json"
+  - "resources/**"
+  - "skills/**"
+  - "node_modules/**"
+  - "!**/.vscode/*"
+  - "!**/*.{log,txt}"
+  - "!{.env,.env.*,.npmrc}"
+  - "!out/renderer/assets/maps/**"
+asarUnpack:
+  - "resources/**"
+  - "skills/**"
+  - "node_modules/onnxruntime-node/bin/**"
+extraResources:
+  - from: build/fastembed-models
+    to: fastembed-models
+  - from: build/lua-language-server
+    to: lua-language-server
+win:
+  executableName: myRP.build
+npmRebuild: false
