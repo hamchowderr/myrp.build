@@ -14,9 +14,11 @@
 import { InMemoryStore, MastraCompositeStore } from "@mastra/core/storage";
 import type { RunStorageContext } from "./context";
 import { SupabaseMemoryStorage } from "./memory";
+import { SupabaseObservabilityStorage } from "./observability";
 
 export type { RunStorageContext } from "./context";
 export { SupabaseMemoryStorage } from "./memory";
+export { SupabaseObservabilityStorage } from "./observability";
 export type { RunSupabaseClient } from "./supabase-client";
 export { createRunClient, getSupabaseAnonKey, getSupabaseUrl } from "./supabase-client";
 export {
@@ -30,7 +32,10 @@ export { SupabaseVector } from "./vector";
 
 /**
  * Build a composite store: memory = cloud Supabase (scoped by `ctx`),
- * workflows = local in-memory.
+ * observability = cloud Supabase AI-trace spans (scoped by `ctx`),
+ * workflows = local in-memory. The MastraStorageExporter resolves the
+ * `observability` domain from `mastra.getStorage()` at init, so wiring it here
+ * is what turns on the prod trace sink.
  */
 export function createSupabaseMemoryStore(ctx: RunStorageContext): MastraCompositeStore {
   return new MastraCompositeStore({
@@ -38,6 +43,7 @@ export function createSupabaseMemoryStore(ctx: RunStorageContext): MastraComposi
     disableInit: true,
     domains: {
       memory: new SupabaseMemoryStorage(ctx),
+      observability: new SupabaseObservabilityStorage(ctx),
       workflows: new InMemoryStore().stores.workflows,
     },
   });

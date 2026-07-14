@@ -1,29 +1,30 @@
 /**
  * Mastra AI tracing for the generation agent.
  *
- * `@mastra/observability` was a declared-but-unused dependency; this wires it
- * into the Harness so agent + tool runs produce trace spans. The exporter is the
- * zero-config {@link ConsoleExporter}: spans print to the process log — NO database
- * and NO credential, which is mandatory here (the client ships none). The default
- * `sensitiveDataFilter` redacts secrets (keys/tokens) before any span is exported.
+ * Two sinks, chosen by run mode in ipc/chat.ts:
+ *  - DEV/owner (`createFiveMObservability`): the zero-config {@link ConsoleExporter}
+ *    — spans print to the process log, NO database and NO credential. Singleton
+ *    (a second instance would double-register); safe because the console sink is
+ *    stateless and dev is single-user.
+ *  - PROD (`createProdObservability`): the {@link MastraStorageExporter}, which
+ *    persists spans to the Harness's `observability` storage domain — our
+ *    SupabaseObservabilityStorage (per-run JWT, RLS, SECURITY DEFINER RPC; no
+ *    shipped credential). Created FRESH PER RUN: the exporter resolves its storage
+ *    from `mastra.getStorage()` at init, and each run's storage is scoped to that
+ *    run's tenant/JWT — a shared instance would bind to the first run's identity.
+ *    If the `observability` domain is ever absent the exporter self-disables with
+ *    a warning (framework safety net).
  *
- * Scope: this is the DEV/owner tracing sink (the live path attaches it only under
- * __DEV_BYPASS__). A persistent, queryable PROD sink (Mastra Platform exporter, or
- * a cloud storage domain) is a deliberate follow-up — it needs a sink decision and
- * must honor the no-shipped-creds rule.
+ * The default `sensitiveDataFilter` redacts secrets (keys/tokens) before export.
  */
-import { ConsoleExporter, Observability } from "@mastra/observability";
+import { ConsoleExporter, MastraStorageExporter, Observability } from "@mastra/observability";
 
-let singleton: Observability | undefined;
+let devSingleton: Observability | undefined;
 
-/**
- * The shared FiveM tracing entrypoint (lazily constructed once — a second
- * instance would double-register exporters). Pass the return value to the Harness
- * `observability` option.
- */
+/** DEV/owner tracing: spans -> process log. No DB, no credential. */
 export function createFiveMObservability(): Observability {
-  if (!singleton) {
-    singleton = new Observability({
+  if (!devSingleton) {
+    devSingleton = new Observability({
       configs: {
         "fivem-generator": {
           serviceName: "fivem-generator",
@@ -32,5 +33,21 @@ export function createFiveMObservability(): Observability {
       },
     });
   }
-  return singleton;
+  return devSingleton;
+}
+
+/**
+ * PROD tracing: spans -> cloud Supabase via MastraStorageExporter. Fresh per run
+ * (see file header). The exporter obtains the `observability` storage domain from
+ * the Harness's storage at init; batching/retry/idempotency come from the exporter.
+ */
+export function createProdObservability(): Observability {
+  return new Observability({
+    configs: {
+      "fivem-generator": {
+        serviceName: "fivem-generator",
+        exporters: [new MastraStorageExporter()],
+      },
+    },
+  });
 }

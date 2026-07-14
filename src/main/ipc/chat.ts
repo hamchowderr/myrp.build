@@ -31,7 +31,7 @@ import {
   sendHarnessTurn,
 } from "../mastra/chat-harness";
 import { EMBEDDER } from "../mastra/embedder";
-import { createFiveMObservability } from "../mastra/observability";
+import { createFiveMObservability, createProdObservability } from "../mastra/observability";
 import {
   createRunClient,
   createSupabaseMemoryStore,
@@ -513,9 +513,15 @@ export function registerChatHandlers(): void {
                     },
                   }
                 : {}),
-              // Mastra AI tracing: dev/owner only — ConsoleExporter, no cred.
-              // Prod gets a persistent sink in a later pass (no-shipped-creds rule).
-              ...(DEV_BYPASS ? { observability: createFiveMObservability() } : {}),
+              // Mastra AI tracing. DEV/owner → ConsoleExporter (spans to the log).
+              // PROD → MastraStorageExporter into the cloud `observability` domain
+              // (cloud.storage), gated on an authenticated run + the opt-out consent
+              // flag (default on). No sink when signed-out or opted out.
+              ...(DEV_BYPASS
+                ? { observability: createFiveMObservability() }
+                : cloud && settings.shareGenerationTraces !== false
+                  ? { observability: createProdObservability() }
+                  : {}),
             });
             state.harnessRuntime = runtime;
             state.harnessSession = runtime.session;
