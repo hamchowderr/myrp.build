@@ -19,6 +19,7 @@
     "dev:prod": "infisical run --projectId e56e0da5-6460-4bab-bdd6-2fd12ac5447b --env prod --path /myrp-build --recursive --silent -- electron-vite dev",
     "dev:auth": "node scripts/dev-auth.mjs",
     "db:drift-check": "node scripts/db-drift-check.mjs",
+    "db:seed-corpus": "node scripts/seed-ox-corpus.mjs",
     "ox:currency": "node scripts/check-ox-currency.mjs",
     "build": "npm run typecheck && electron-vite build --mode development",
     "build:prod": "npm run typecheck && infisical run --projectId e56e0da5-6460-4bab-bdd6-2fd12ac5447b --env prod --path /myrp-build --recursive --silent -- electron-vite build --mode production",
