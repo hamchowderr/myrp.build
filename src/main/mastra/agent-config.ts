@@ -17,10 +17,12 @@
  */
 
 import { createOpenAI } from "@ai-sdk/openai";
-import { TokenLimiter } from "@mastra/core/processors";
+import { RegexFilterProcessor, TokenLimiter, ToolCallFilter } from "@mastra/core/processors";
 import type { AnyWorkspace } from "@mastra/core/workspace";
 import { createGateway } from "ai";
+import { DANGEROUS_SHELL_RULES } from "./guardrails";
 import { FIVEM_INSTRUCTIONS } from "./prompt";
+import { RollingCacheBreakpoint } from "./rolling-cache";
 import { createSubAgents } from "./sub-agents";
 
 /** Default model (validated live). ox generation favors Sonnet; override via MASTRA_MODEL. */
@@ -202,8 +204,35 @@ export function buildFiveMAgentConfig(workspace: AnyWorkspace, opts: FiveMAgentO
     },
     model,
     workspace,
-    // Context-window cap — bounds input tokens per step; preserves system.
-    inputProcessors: [new TokenLimiter(TOKEN_LIMIT)],
+    // Input-processor pipeline (runs in array order). Two phases:
+    //   processInput      — once per turn, on the assembled input (recalled
+    //                       history + the new user message).
+    //   processInputStep  — every step of the agentic loop, before each LLM call.
+    inputProcessors: [
+      // aku (defense-in-depth): deterministic, zero-LLM-cost block of
+      // unambiguously destructive shell commands in USER INPUT. The exec approval
+      // gate stays the primary, source-agnostic control (it also catches commands
+      // the agent reads mid-run, which an input processor can't see).
+      new RegexFilterProcessor({
+        rules: DANGEROUS_SHELL_RULES,
+        strategy: "block",
+        phase: "input",
+      }),
+      // sop: strip noisy tool-call payloads from RECALLED history. ToolCallFilter's
+      // default runs only on processInput (turn start), so shared-thread recall
+      // (lastMessages:20 + semanticRecall) drops its large tool results, while the
+      // LIVE multi-step tool results are preserved (filterAfterToolSteps is off).
+      // NB: Mastra unified memory processors onto the agent — the old
+      // `new Memory({ processors })` now THROWS, so this is the correct home.
+      new ToolCallFilter(),
+      // Context-window cap — bounds input tokens per step; preserves system.
+      new TokenLimiter(TOKEN_LIMIT),
+      // 5o2.2: rolling Anthropic cache breakpoint on the last message each step so
+      // the conversation prefix caches (steps 2..N read it). MUST come after the
+      // TokenLimiter so it marks the post-trim last message. Kill-switch:
+      // MYRP_DISABLE_ROLLING_CACHE=1 drops it (ops escape hatch + A/B control run).
+      ...(process.env.MYRP_DISABLE_ROLLING_CACHE === "1" ? [] : [new RollingCacheBreakpoint()]),
+    ],
     // Conversation memory for multi-turn follow-ups; omitted = one-shot.
     ...(opts.memory ? { memory: opts.memory } : {}),
     // maxSteps lives here (not per stream() call) so every caller — runGeneration
