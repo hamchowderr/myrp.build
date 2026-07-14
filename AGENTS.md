@@ -65,6 +65,7 @@ Run `npm run typecheck` before calling any task done. Full contract (500-line fi
 
 Project-specific detail lives in `.claude/rules/*.md` (auto-loaded when you touch files in scope) — don't duplicate it here:
 
+- **`public-repo.md`** — **this is the PUBLIC open-core repo.** What must stay OUT of public commits/PRs/issues/`bd` (secrets, moat/strategy → owner's private vault, NOT `bd remember`). Read before writing any commit message or `bd remember`.
 - **`dev-vs-prod.md`** — the two run modes (owner dev-bypass vs prod), local vs cloud Supabase, why a source edit might not show up in a packaged build.
 - **`ox-only.md`** — targets the **ox_overextended** ecosystem ONLY (ox_core / ox_lib / ox_inventory / ox_target / oxmysql); skills load from the root `skills/` dir via the `OX_SKILLS` allowlist.
 - **`mastra-agents.md`** — generation runs on **Mastra + Vercel AI SDK** (`src/main/mastra/**`), not the Claude Agent SDK; tested through AIMock.
