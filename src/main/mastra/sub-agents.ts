@@ -73,11 +73,32 @@ const ENFORCES_GROUND_RULES = new Set([
   "security-auditor",
 ]);
 
-/** A specialist's instructions, with the shared ground rules appended when it writes/checks code. */
-function withGroundRules(spec: SpecialistSpec): string {
-  return ENFORCES_GROUND_RULES.has(spec.id)
+/**
+ * A specialist's SYSTEM MESSAGE — its instructions (+ the shared GROUND_RULES
+ * when it writes/checks ox code), marked for Anthropic ephemeral prompt caching.
+ *
+ * WHY CACHE: every specialist runs `forked: false` — a FRESH run with its OWN
+ * instructions; the supervisor's cached prefix is NOT inherited (see
+ * AgentControllerSubagent.forked). A specialist then runs its own multi-step
+ * internal loop (read → write server.lua → write client.lua → manifest …) and
+ * re-sends this system message (instructions + tool schemas + GROUND_RULES) on
+ * EVERY step, so the ephemeral marker turns steps 2..N of its own loop into
+ * cheap cache reads. Sub-threshold prompts (the tiny text-only lore-specialist)
+ * are simply ignored by Anthropic — no cache created, no 1.25× write premium —
+ * so marking uniformly is free upside. Mirrors the supervisor's system-message
+ * caching in agent-config.ts. AIMock ignores providerOptions, so tests are
+ * unaffected; the win is live-token cost only.
+ */
+function specialistSystemMessage(spec: SpecialistSpec) {
+  const content = ENFORCES_GROUND_RULES.has(spec.id)
     ? `${spec.instructions}\n\nABSOLUTE RULES — never violate regardless of the task:\n${GROUND_RULES}`
     : spec.instructions;
+  return {
+    // `as const` narrows role to the literal "system" for the SystemMessage type.
+    role: "system" as const,
+    content,
+    providerOptions: { anthropic: { cacheControl: { type: "ephemeral" as const } } },
+  };
 }
 
 const SPECIALISTS: SpecialistSpec[] = [
@@ -177,7 +198,7 @@ export function createSubAgentDefs(): AgentControllerSubagent[] {
     id: s.id,
     name: s.name,
     description: s.description,
-    instructions: withGroundRules(s),
+    instructions: specialistSystemMessage(s),
     defaultModelId: s.model,
     allowedWorkspaceTools: s.allowedWorkspaceTools,
     forked: false,
@@ -197,7 +218,7 @@ export function createSubAgents(workspace: AnyWorkspace): Record<string, Agent> 
       id: s.id,
       name: s.name,
       description: s.description,
-      instructions: withGroundRules(s),
+      instructions: specialistSystemMessage(s),
       model: s.model,
       ...(s.usesWorkspace ? { workspace } : {}),
     });
