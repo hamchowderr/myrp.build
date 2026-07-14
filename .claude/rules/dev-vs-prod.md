@@ -20,6 +20,13 @@ Which database backs agent memory + RAG depends on the mode:
 - **Dev** (`FIVEM_STUDIO_DEV=1`): uses the **same** `SupabaseMemoryStorage` adapter against **local** Supabase (`127.0.0.1:55321`) — `storage/dev-auth.ts` signs in the seeded dev user (`supabase/seed.sql`) for a JWT. Same path/schema as prod; the old raw-`PostgresStore` fallback is gone. If dev chat memory errors, run `supabase db reset` (rebuilds schema + re-seeds the dev user). Requires local Supabase running (`supabase start`).
 - **Both modes:** workflow approval snapshots are **always local** (`InMemoryStore`), never cloud.
 
+### Local RAG corpus (ic8)
+The ox knowledge corpus (`ox_corpus`) is empty in a fresh local DB, so `match_ox_corpus` returns `[]` and `rag.ts` no-ops. To get real RAG locally/self-host, seed it AFTER `supabase db reset`:
+```bash
+npm run db:seed-corpus   # loads supabase/ox_corpus.jsonl.gz into ox_corpus (~15.7k rows, seconds)
+```
+The shipped snapshot (`supabase/ox_corpus.jsonl.gz`, ~22 MB) holds the corpus WITH precomputed fastembed embeddings (bge-small 384-dim, 6-dp rounded — the same model `rag.ts` queries with), so the seed is a plain load (~40s), no embedding step. `seed.sql` can't do it (pure SQL, gzipped file) — it stays a separate `db:seed-corpus` step.
+
 ## Seeing your change — match the surface to the run mode
 - **Renderer edits** (screens, components, CSS): `npm run dev` hot-reloads them; if not, `Ctrl+R` in the window.
 - **Main / preload edits** (IPC, windows, auto-deploy, fileWriter, Mastra): NOT hot-reloaded — fully restart `npm run dev`.
