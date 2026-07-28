@@ -41,7 +41,10 @@
     "studio": "mastra dev --dir studio --env .env"
   },
   "overrides": {
-    "adm-zip": "^0.6.0"
+    "adm-zip": "^0.6.0",
+    "@electron/asar": "^4.2.1",
+    "@electron/universal": "^3.0.6",
+    "ejs": "^6.0.1"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.12",

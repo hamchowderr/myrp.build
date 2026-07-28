@@ -32,34 +32,28 @@ const NODE_MAJOR = 24; // see bd memory myrp-build-requires-node-24 (npm 11 lock
  */
 const ALLOW = [
   {
-    cluster: "electron-builder build chain — minimatch/glob DoS",
+    cluster: "electron-builder Squirrel/dmg chain — brace-expansion DoS via minimatch@3",
     scope: "build",
     packages: [
-      "@electron/asar",
-      "@electron/universal",
       "app-builder-lib",
-      "dir-compare",
       "dmg-builder",
-      "ejs",
       "electron-builder",
       "electron-builder-squirrel-windows",
       "electron-winstaller",
-      "filelist",
       "glob",
-      "jake",
       "rimraf",
       "temp",
     ],
     reason:
-      "All of these are flagged only for depending on minimatch <=10.0.2 / glob <=10.5.0. " +
-      "The sole patched releases are minimatch 10.2.6 and glob 11+, whose CJS entry points export a " +
-      "namespace rather than a callable. dir-compare (via @electron/universal) calls minimatch as a " +
-      "function and rimraf@2 (via temp -> electron-winstaller) uses glob's callback API, so an override " +
-      "breaks the Windows installer build. Build-time only — never bundled into the app. " +
-      "Recheck when electron-builder ships modernised transitive deps.",
+      "One root advisory (brace-expansion) reached through electron-winstaller -> temp -> rimraf@2 -> " +
+      "glob@7 -> minimatch@3. temp@0.9.4 is already latest and hard-pins rimraf ~2.6.2, and temp calls " +
+      "rimraf(path, opts, cb) plus rimraf.sync — APIs rimraf 4+ removed — so the chain cannot be " +
+      "overridden from here. Only reached when building the Squirrel.Windows or dmg targets; we ship " +
+      "NSIS, and it is build-time only either way. app-builder-lib itself is already on minimatch@10. " +
+      "Recheck when temp or electron-winstaller modernise.",
   },
   {
-    cluster: "mastra CLI dev server",
+    cluster: "mastra CLI dev server — brace-expansion DoS via minimatch@3",
     scope: "build",
     packages: [
       "@hono/node-ws",
@@ -71,9 +65,10 @@ const ALLOW = [
       "serve-handler",
     ],
     reason:
-      "The `mastra` CLI (npm run studio) only. serve-handler is vulnerable at every published version " +
-      "(no fix exists) and npm's suggested fix is a major downgrade to mastra@0.18.9. Local dev server " +
-      "bound to localhost; not part of any shipped artifact.",
+      "The `mastra` CLI (npm run studio) only. serve-handler@6.1.7 (latest) hard-pins minimatch 3.1.5 " +
+      "and calls it as `minimatch(path, pattern)`; minimatch 10 — the only patched line — exports a " +
+      "namespace rather than a callable, so overriding it breaks serve-handler. npm's suggested fix is " +
+      "a major downgrade to mastra@0.18.9. Local dev server on localhost; not in any shipped artifact.",
   },
   {
     cluster: "@mastra/core AI SDK compat aliases",
