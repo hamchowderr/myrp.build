@@ -32,6 +32,8 @@
     "build:unpack:nosign": "npm run clean && npm run build:prod && electron-builder --dir --config electron-builder.nosign.yml",
     "build:unpack:e2e": "npm run clean && npm run build:prod && electron-builder --dir --config electron-builder.e2e.yml",
     "build:win": "npm run clean && npm run build:prod && electron-builder --win",
+    "release:check": "node scripts/release.mjs --check",
+    "release:win": "npm run clean && npm run build:prod && node scripts/release.mjs",
     "build:mac": "npm run clean && npm run build:prod && electron-builder --mac",
     "build:linux": "npm run clean && npm run build:prod && electron-builder --linux",
     "fallow": "fallow",
