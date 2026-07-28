@@ -56,13 +56,17 @@ describe("createFiveMHarness end-to-end run", () => {
     expect(types).toContain("display_state_changed"); // the DisplayState-driven surface
     expect(types).toContain("usage_update"); // token-usage stream
 
-    // The assistant reply is UIMessage-shaped content-parts ([{type:'text',text}]).
+    // The assistant reply arrives as Mastra's MastraDBMessage: `content` is
+    // MastraMessageContentV2 — `{ format: 2, parts: [{type:'text',text}] }`, not a
+    // bare parts array. The renderer unwraps this in reduceHarnessEvent; assert on
+    // the raw contract here so a future shape change fails loudly.
     const assistant = events
       .filter((e) => e.type === "message_end")
       .map((e) => e.message)
       .find((m) => m?.role === "assistant");
     expect(assistant).toBeTruthy();
-    const parts = (assistant?.content ?? []) as Array<{ type: string; text?: string }>;
+    const content = assistant?.content as { parts?: Array<{ type: string; text?: string }> };
+    const parts = content?.parts ?? [];
     const text = parts
       .filter((p) => p.type === "text")
       .map((p) => p.text ?? "")

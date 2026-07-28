@@ -11,6 +11,14 @@ Electron + electron-vite — **three targets** (main, preload, renderer). "Done"
 - `npm run build` / `npm run build:win` — compile-check build / signed Windows installer. `build:unpack:nosign` = fast unpacked exe.
 
 ## Maintenance checks
+- `npm run deps:check` — dependency drift + advisory gate. Fails on **in-range drift** (a dep behind
+  what our own `^` range already allows — close it with `npm update`) or on any advisory not in the
+  allowlist. Newer majors are reported but never fail. Advisories are split by whether they actually
+  ship: the **production** tree (`--omit=dev`) is what users get; electron-builder / `mastra` CLI
+  findings are build-time only. **Never trust `npm audit fix --force` here** — on this repo npm has
+  proposed major *downgrades* as "fixes" (electron-builder 26→22, mastra 1.20→0.18,
+  @mastra/fastembed 1.2→1.0, all three already at latest). Park anything unfixable in `ALLOW` in
+  `scripts/deps-check.mjs` **with a reason**; entries that stop matching are reported as stale.
 - `npm run db:drift-check` — diff the **linked cloud Supabase** against local `supabase/migrations/`; a non-empty diff means a migration is recorded-as-applied but its body didn't fully run. Needs the CLI linked + Docker (shadow DB). Local-first, zero CI secrets.
 - `npm run ox:currency` — check the `ox_*` versions pinned in `docs/ox-server-setup.md` against the latest Overextended releases (via `gh`). CI-ready; exits non-zero when a pinned version is behind. Run it after touching ox versions instead of checking by hand.
 
