@@ -5,6 +5,7 @@
   "main": "./out/main/index.js",
   "author": "Otaku Solutions",
   "homepage": "https://myrp.build",
+  "license": "FSL-1.1-ALv2",
   "scripts": {
     "format": "biome format --write .",
     "lint": "biome lint .",
