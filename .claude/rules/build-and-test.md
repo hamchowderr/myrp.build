@@ -22,6 +22,26 @@ Electron + electron-vite — **three targets** (main, preload, renderer). "Done"
 - `npm run db:drift-check` — diff the **linked cloud Supabase** against local `supabase/migrations/`; a non-empty diff means a migration is recorded-as-applied but its body didn't fully run. Needs the CLI linked + Docker (shadow DB). Local-first, zero CI secrets.
 - `npm run ox:currency` — check the `ox_*` versions pinned in `docs/ox-server-setup.md` against the latest Overextended releases (via `gh`). CI-ready; exits non-zero when a pinned version is behind. Run it after touching ox versions instead of checking by hand.
 
+## Releasing (`scripts/release.mjs`)
+- `npm run release:check` — preflight only, no build. Verifies: on `main`, clean tree, synced
+  with origin, version not already released, the `TrustedSigning` module, the three Azure
+  credentials + a GitHub token (**by length only — never printed**), and the bundled
+  `build/fastembed-models` + `build/lua-language-server`.
+- `npm run release:win` — clean → `build:prod` → preflight → `electron-builder --win --publish always`.
+  `--publish always` is what uploads **`latest.yml` alongside the installer**; without it the
+  auto-updater has nothing to read.
+- **Local, not CI, on purpose.** Signing needs the `TrustedSigning` PowerShell module plus
+  `AZURE_TENANT_ID`/`CLIENT_ID`/`CLIENT_SECRET`, which live in Infisical (`prod`, `/myrp-build`,
+  `--recursive`). Copying those into Actions secrets on a **public** repo is a deliberate call, not
+  a launch-week reflex.
+- electron-builder resolves **`pwsh.exe` first**, falling back to `powershell.exe` (`app-builder-lib/out/vm/vm.js`).
+  The two have separate module paths (`Documents\PowerShell` vs `Documents\WindowsPowerShell`), so a
+  module check against the wrong shell reports "missing" when signing works fine. It also
+  self-installs the module when absent — so that check is a warning, never a blocker.
+- Releases publish as a **draft** (`releaseType: draft`), invisible until published in the GitHub UI.
+  Order that matters: verify the assets → install clean → cut a `+1` version and confirm the
+  installed copy **self-updates** → only then publish. Steps 3 is the one nobody tests until it fails.
+
 ## Conventions
 - **500-line hard cap** per file; review anything over ~300 lines for splitting.
 - Two type-declaration files MUST stay in sync: `src/preload/index.d.ts` and `src/renderer/src/env.d.ts` (both declare `window.api`).
