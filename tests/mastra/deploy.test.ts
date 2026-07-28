@@ -128,8 +128,12 @@ describe("deploy_resource tool (445.2) — approval-gated ensure via RCON", () =
   });
 
   afterEach(async () => {
-    if (udp) await new Promise<void>((r) => udp.close(() => r()));
-    if (server) await new Promise<void>((r) => server.close(() => r()));
+    // Bind to locals first: the `if (udp)` narrowing does not survive into the
+    // Promise callback, so referencing the outer `let` there is possibly-undefined.
+    const u = udp;
+    const s = server;
+    if (u) await new Promise<void>((r) => u.close(() => r()));
+    if (s) await new Promise<void>((r) => s.close(() => r()));
     rmSync(root, { recursive: true, force: true });
   });
 

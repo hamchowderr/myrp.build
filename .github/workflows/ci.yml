@@ -34,7 +34,7 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Typecheck (node + web)
+      - name: Typecheck (node + web + tests)
         run: npm run typecheck
 
       - name: Lint + format (Biome)

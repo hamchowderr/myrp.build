@@ -1,0 +1,34 @@
+{
+  // Third typecheck project: the test suite. tsconfig.node.json covers
+  // src/main + src/preload and tsconfig.web.json covers src/renderer, so
+  // before this existed NOTHING type-checked tests/ — a type error there was
+  // invisible until Vitest happened to execute that exact line.
+  //
+  // Extends the WEB base (DOM lib + the @renderer alias) because tests/renderer
+  // and parts of tests/mastra import renderer modules; node types are added on
+  // top for the main-process tests that use node:fs / node:path.
+  //
+  // Not `composite` and not referenced from tsconfig.json: this project only
+  // ever runs via `npm run typecheck:test`, it emits nothing, and tests are not
+  // an input to any build.
+  "extends": "@electron-toolkit/tsconfig/tsconfig.web.json",
+  // src/main/env.d.ts declares the `__DEV_BYPASS__` build-time literal that
+  // electron.vite.config.ts injects; main-process modules reference it, so tests
+  // that import them need the declaration in scope.
+  "include": [
+    "tests/**/*",
+    "vitest.config.ts",
+    "src/main/env.d.ts",
+    "src/renderer/src/env.d.ts",
+    "src/preload/*.d.ts"
+  ],
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@renderer/*": ["src/renderer/src/*"]
+    },
+    "types": ["node"],
+    "noEmit": true
+  }
+}

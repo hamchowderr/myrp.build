@@ -45,7 +45,11 @@ describe("createFiveMHarness end-to-end run", () => {
   it("emits agent/message/usage events and the assistant reply as content-parts", async () => {
     const session = await harness.createSession({ resourceId: "ws_t__srv_t" });
     const events: Array<{ type: string; message?: { role?: string; content?: unknown } }> = [];
-    const unsub = session.subscribe((e) => events.push(e as (typeof events)[number]));
+    // Braces matter: `push` returns a number and the listener is typed
+    // `void | Promise<void>`, so a bare expression body is a type error.
+    const unsub = session.subscribe((e) => {
+      events.push(e as (typeof events)[number]);
+    });
     await session.sendMessage({ content: "ping" });
     unsub();
 

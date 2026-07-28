@@ -79,8 +79,12 @@ describe("Harness persistent runtime: suspend on one turn, resume on the next", 
     expect(afterTurn.done).toBe(false);
 
     // Turn 2: answer the suspension on the SAME session → the resumed run completes.
+    // toolCallId comes off the event's index signature as `unknown`; assert it is
+    // really there rather than casting the possibly-undefined event to a shape.
+    const toolCallId = susp?.toolCallId;
+    expect(typeof toolCallId).toBe("string");
     const resume = await resumeHarnessSuspension(runtime, {
-      toolCallId: (susp as { toolCallId: string }).toolCallId,
+      toolCallId: toolCallId as string,
       resumeData: "ox",
       send,
     });

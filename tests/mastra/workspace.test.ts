@@ -44,7 +44,7 @@ describe("FiveM workspace tools", () => {
   });
 
   it("lists directory entries", async () => {
-    const entries = await ws.filesystem?.readdir("[local]/demo");
+    const entries = await ws.filesystem!.readdir("[local]/demo");
     const names = entries.map((e) => e.name);
     expect(names).toContain("fxmanifest.lua");
   });
@@ -58,7 +58,8 @@ describe("FiveM workspace tools", () => {
     // Quote-free command — the local sandbox re-quotes args through the OS
     // shell, so `node -e "..."` mangles inner quotes on Windows. `--version`
     // is enough to prove command execution + stdout capture + exit code.
-    const result = await ws.sandbox?.executeCommand?.("node", ["--version"]);
+    const sandbox = ws.sandbox!;
+    const result = await sandbox.executeCommand!("node", ["--version"]);
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toMatch(/v\d+\./);
   });
