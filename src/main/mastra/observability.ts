@@ -81,14 +81,24 @@ function platformExporter(opts?: ProdObservabilityOptions): MastraPlatformExport
     });
   }
   // Self-host / owner: the operator's own project, straight to Mastra. The exporter
-  // reads MASTRA_PLATFORM_ACCESS_TOKEN itself; we gate on it so an unconfigured
-  // install carries no disabled exporter at all.
-  if (process.env.MASTRA_PLATFORM_ACCESS_TOKEN) {
+  // resolves the token itself; we gate on the same two names it accepts so an
+  // unconfigured install carries no disabled exporter at all.
+  //
+  // MASTRA_CLOUD_ACCESS_TOKEN is the older name and still the exporter's final
+  // fallback. Gating on the new name ALONE silently produced console-only tracing
+  // on a machine that had the legacy variable set and working — the precise
+  // "configured but does nothing" failure this wiring exists to remove.
+  if (hasPlatformToken()) {
     return new MastraPlatformExporter({
       projectId: process.env.MASTRA_PLATFORM_PROJECT_ID,
     });
   }
   return undefined;
+}
+
+/** Both names the exporter accepts, in its own precedence order. */
+function hasPlatformToken(): boolean {
+  return Boolean(process.env.MASTRA_PLATFORM_ACCESS_TOKEN || process.env.MASTRA_CLOUD_ACCESS_TOKEN);
 }
 
 function config(exporters: ObservabilityExporter[], excludeHighVolume: boolean) {

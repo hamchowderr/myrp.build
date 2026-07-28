@@ -20,7 +20,14 @@ const names = (obs: ReturnType<typeof createProdObservability>): string[] =>
     ?.getExporters()
     .map((e) => e.name) ?? [];
 
-const PLATFORM_ENV = ["MASTRA_PLATFORM_ACCESS_TOKEN", "MASTRA_PLATFORM_PROJECT_ID"] as const;
+// Both token names the exporter accepts. MASTRA_CLOUD_ACCESS_TOKEN is the legacy
+// one and must be cleared too, or these assertions pass for the wrong reason on a
+// machine that happens to have it set.
+const PLATFORM_ENV = [
+  "MASTRA_PLATFORM_ACCESS_TOKEN",
+  "MASTRA_CLOUD_ACCESS_TOKEN",
+  "MASTRA_PLATFORM_PROJECT_ID",
+] as const;
 
 describe("prod exporter composition", () => {
   const saved: Record<string, string | undefined> = {};
@@ -69,6 +76,17 @@ describe("prod exporter composition", () => {
     );
     expect(got).toEqual(["mastra-storage-exporter"]);
   });
+
+  it.each(["MASTRA_PLATFORM_ACCESS_TOKEN", "MASTRA_CLOUD_ACCESS_TOKEN"])(
+    "honours %s for a direct (non-proxied) platform export",
+    (envName) => {
+      // The exporter falls back through both names, so gating on only the newer one
+      // silently disabled tracing on a machine where the legacy name was set and
+      // perfectly usable. Cover both so that cannot regress.
+      process.env[envName] = "operator-token";
+      expect(names(createProdObservability())).toContain("mastra-platform-exporter");
+    },
+  );
 
   it("drops model_chunk spans in prod (per-event billing + DB writes)", () => {
     const cfg = createProdObservability().getInstance(SERVICE)?.getConfig();
