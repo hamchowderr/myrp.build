@@ -54,6 +54,11 @@ export function Generator({
   // Generation output (manifest + undo). Separate from the transcript on purpose:
   // a result outlives the turn that produced it. See useGenerationResult.
   const { result, canUndo, undo, clearResult, resultCount } = useGenerationResult();
+  // The sidebar re-lists threads whenever this changes. A generation is not the
+  // only thing that adds one — branching does too, and it produces no
+  // `chat:result` — so the signal combines both, or a freshly branched thread
+  // stays invisible until something unrelated happens to refresh the list.
+  const [branchCount, setBranchCount] = useState(0);
   // Drives the header spinner and the artifact panel's busy state. Previously read
   // from the retired useChat transport, which no longer streams — so this was
   // stuck false for every real generation.
@@ -101,6 +106,7 @@ export function Generator({
       toast.error(res.error ?? "Couldn't branch this conversation.");
       return;
     }
+    setBranchCount((n) => n + 1);
     await openHarnessThread(newThreadId);
   }, [harness.threadId, harness.status, getToken, workspaceId, openHarnessThread]);
   const { processStatus, refresh: refreshProcess } = useServerProcess();
@@ -178,7 +184,7 @@ export function Generator({
                   onOpenThread={(id) => void openHarnessThread(id)}
                   onNewSession={harness.reset}
                   onBranch={() => void branchThread()}
-                  refreshSignal={String(resultCount)}
+                  refreshSignal={`${resultCount}:${branchCount}`}
                 />
               </div>
             </div>
