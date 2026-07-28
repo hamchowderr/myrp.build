@@ -30,15 +30,6 @@ interface MyRPBuildAPI {
   findServerExe: (serverPath: string) => Promise<string | null>;
   detectContext: (serverPath: string) => Promise<ServerContext>;
   chat: {
-    start: (payload: {
-      text: string;
-      chatId: string;
-      model?: string;
-      accessToken?: string;
-      workspaceId?: string;
-    }) => Promise<void>;
-    cancel: () => Promise<void>;
-    approve: (approved: boolean) => Promise<void>;
     clone: (payload: {
       sourceThreadId: string;
       newThreadId: string;
@@ -100,11 +91,6 @@ interface MyRPBuildAPI {
       accessToken?: string;
       workspaceId?: string;
     }) => Promise<{ ok: boolean; suggestions?: string[]; error?: string }>;
-    onApprovalPending: (callback: () => void) => () => void;
-    onChunk: (callback: (chunk: unknown) => void) => () => void;
-    onDone: (
-      callback: (payload: { generationId: string | null }) => void,
-    ) => () => void;
     onError: (callback: (message: string) => void) => () => void;
     onResult: (
       callback: (
@@ -113,7 +99,6 @@ interface MyRPBuildAPI {
     ) => () => void;
   };
   harness: {
-    isEnabled: () => Promise<boolean>;
     start: (payload: {
       text: string;
       chatId: string;

@@ -1,7 +1,5 @@
 /**
- * Harness chat view — the alpha counterpart to
- * AEChat, shown only when the default-OFF useHarness flag is on. Where AEChat
- * renders AI-SDK UIMessage parts from useAEChat, this renders the Harness
+ * The chat view — the ONLY one. Renders the controller
  * transcript from {@link useHarnessChat} (folded by reduceHarnessEvent) on the
  * SAME ai-elements primitives: text → MessageResponse, thinking → Reasoning,
  * tool calls → Tool, task_updated → Task, approvals → an inline gate, the live

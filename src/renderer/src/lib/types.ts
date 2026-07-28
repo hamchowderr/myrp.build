@@ -28,7 +28,6 @@ export interface AppSettings {
   activeServerId: string | null; // which registered server is currently selected
   apiKey?: never; // never stored in settings — always from .env
   requireApproval?: boolean; // app-level: gate sensitive ops (shell/delete) behind approve/decline
-  useHarness?: boolean; // alpha: route chat through the Mastra Harness instead of agent.stream. Default-OFF; env MYRP_USE_HARNESS=1 also enables it for dev.
   shareGenerationTraces?: boolean; // opt-OUT (default on): persist AI-trace spans to your workspace's cloud store for observability. Set false to disable the prod trace sink.
 }
 
