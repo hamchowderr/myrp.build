@@ -39,7 +39,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "studio": "mastra dev --dir studio --env .env"
+    "studio": "mastra dev --dir studio --env .env",
+    "prepare": "husky"
   },
   "overrides": {
     "adm-zip": "^0.6.0",
@@ -98,6 +99,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.15",
+    "@commitlint/cli": "^21.2.1",
+    "@commitlint/config-conventional": "^21.2.0",
     "@copilotkit/aimock": "^1.27.1",
     "@electron-toolkit/tsconfig": "^2.0.0",
     "@mastra/editor": "^0.13.6",
@@ -114,6 +117,7 @@
     "electron-builder": "^26.14.0",
     "electron-vite": "^5.0.0",
     "fallow": "^2.84.0",
+    "husky": "^9.1.7",
     "mastra": "^1.18.2",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",

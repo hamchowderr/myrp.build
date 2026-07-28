@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+# --- BEGIN BRAYNEE COMMIT-MSG LINT v1 ---
+# Managed by braynee. Do not remove these markers — content between them is
+# replaced on re-install; anything outside is preserved.
+# --no-install: fail loudly if commitlint is not installed rather than
+# silently downloading it on every commit.
+npx --no -- commitlint --edit "$1"
+# --- END BRAYNEE COMMIT-MSG LINT v1 ---
