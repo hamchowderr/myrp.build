@@ -249,8 +249,13 @@ npm run dev                    # Electron + Vite HMR
 >
 > ```bash
 > MASTRA_PLATFORM_ACCESS_TOKEN=...   # your Mastra Platform token
-> MASTRA_PLATFORM_PROJECT_ID=...     # optional — scopes traces to one project
+> MASTRA_PROJECT_ID=...              # required — Observe rejects unscoped spans
 > ```
+>
+> Get both from [Mastra Platform](https://projects.mastra.ai): create a project with
+> the **Set up observability** starting path for the id, then
+> `npx mastra auth tokens create <name>` for the token. Both are needed — Observe
+> only accepts spans on the project-scoped route, so a token alone returns 401.
 
 > 💾 **Set up chat memory.** myRP.build is a multi-turn chat — follow-ups ("now add a cooldown"), saved threads, and conversation history all run on a local **Supabase** stack (the same Postgres the rest of the app uses). Install the [Supabase CLI](https://supabase.com/docs/guides/cli), then `supabase start` (needs Docker) and `supabase db reset` to seed the local user. _(A one-shot generation will still run without it, but you'd lose memory between turns — so treat this as part of setup.)_
 

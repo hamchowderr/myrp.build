@@ -26,7 +26,7 @@ const names = (obs: ReturnType<typeof createProdObservability>): string[] =>
 const PLATFORM_ENV = [
   "MASTRA_PLATFORM_ACCESS_TOKEN",
   "MASTRA_CLOUD_ACCESS_TOKEN",
-  "MASTRA_PLATFORM_PROJECT_ID",
+  "MASTRA_PROJECT_ID",
 ] as const;
 
 describe("prod exporter composition", () => {

@@ -88,9 +88,14 @@ function platformExporter(opts?: ProdObservabilityOptions): MastraPlatformExport
   // fallback. Gating on the new name ALONE silently produced console-only tracing
   // on a machine that had the legacy variable set and working — the precise
   // "configured but does nothing" failure this wiring exists to remove.
+  //
+  // MASTRA_PROJECT_ID is NOT optional in practice. Verified against the live
+  // ingest: the unscoped /ai/spans/publish route answers 401 UNAUTHORIZED, while
+  // /projects/<id>/ai/spans/publish with the SAME bearer answers 200. Without a
+  // project id the exporter derives the unscoped route and every span is rejected.
   if (hasPlatformToken()) {
     return new MastraPlatformExporter({
-      projectId: process.env.MASTRA_PLATFORM_PROJECT_ID,
+      projectId: process.env.MASTRA_PROJECT_ID,
     });
   }
   return undefined;
