@@ -1,13 +1,13 @@
 /**
- * Mastra specialist layer (Harness isolation).
+ * Mastra specialist layer (controller isolation).
  *
  * The 7 specialists are defined ONCE in SPECIALISTS and exposed two ways:
- *  - createSubAgentDefs(): AgentControllerSubagent[] — the Harness-native shape
- *    (passed to `new Harness({ subagents })`). Isolation is expressed
+ *  - createSubAgentDefs(): AgentControllerSubagent[] — the controller-native shape
+ *    (passed to `new AgentController({ subagents })`). Isolation is expressed
  *    per-specialist via `allowedWorkspaceTools` (each shares the CONTROLLER's
  *    workspace but only sees the tools its role needs) and `forked: false`
  *    (isolated context/memory — a fresh run, not a clone of the supervisor's
- *    thread). The Harness has no per-subagent workspace instance; tool-scoping
+ *    thread). The controller has no per-subagent workspace instance; tool-scoping
  *    IS the workspace isolation.
  *  - createSubAgents(workspace): Record<string, Agent> — the legacy
  *    agents-as-tools shape the current supervisor uses behind the default-OFF
@@ -188,8 +188,8 @@ const SPECIALISTS: SpecialistSpec[] = [
 ];
 
 /**
- * Harness-native specialist definitions. The Harness factory passes these to
- * `new Harness({ subagents })`; the Harness auto-creates the `subagent` tool the
+ * Controller-native specialist definitions. The harness factory passes these to
+ * `new AgentController({ subagents })`; the controller auto-creates the `subagent` tool the
  * supervisor calls to delegate. Each runs isolated (`forked: false`) and sees
  * only its role's workspace tools (`allowedWorkspaceTools`).
  */

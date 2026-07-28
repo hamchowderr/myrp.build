@@ -2,24 +2,24 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Agent } from "@mastra/core/agent";
-import { Harness } from "@mastra/core/harness";
+import { AgentController } from "@mastra/core/agent-controller";
 import { InMemoryStore, MastraCompositeStore } from "@mastra/core/storage";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createFiveMWorkspace } from "../../src/main/mastra/workspace";
 
 /**
- * De-risk test for the Harness storage phase. Proves the Mastra
- * Harness drives thread lifecycle against a MastraCompositeStore shaped EXACTLY
- * like createSupabaseMemoryStore() — split `memory` + `workflows` domains on one
+ * De-risk test for the controller storage phase. Proves the Mastra
+ * AgentController drives thread lifecycle against a MastraCompositeStore shaped
+ * EXACTLY like createSupabaseMemoryStore() — split `memory` + `workflows` domains on one
  * composite store. Here both domains are InMemoryStore so there's no Supabase and
- * no LLM (thread ops are pure storage). The Harness `storage` param is typed
+ * no LLM (thread ops are pure storage). The controller's `storage` param is typed
  * `MastraCompositeStore`, so the shape proven here is the same one the live path will pass;
  * the only prod difference is the `memory` domain = SupabaseMemoryStorage.
  */
-describe("Harness thread lifecycle over a composite store", () => {
+describe("AgentController thread lifecycle over a composite store", () => {
   let root: string;
-  let harness: Harness;
-  let session: Awaited<ReturnType<Harness["createSession"]>>;
+  let harness: AgentController;
+  let session: Awaited<ReturnType<AgentController["createSession"]>>;
 
   beforeAll(async () => {
     root = mkdtempSync(join(tmpdir(), "harness-"));
@@ -41,7 +41,7 @@ describe("Harness thread lifecycle over a composite store", () => {
       instructions: "thread-only; never streamed",
       model: "anthropic/claude-sonnet-4-6",
     });
-    harness = new Harness({
+    harness = new AgentController({
       id: "harness-test-harness",
       storage,
       agent,

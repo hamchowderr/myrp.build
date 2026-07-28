@@ -6,17 +6,16 @@
  * (src/renderer/src/lib/harness/events.ts).
  *
  * Two layers:
- *  - {@link runHarnessTurn} drives ONE turn on an already-built Harness: bind the
- *    thread, subscribe, run, forward events. Pure transport — no lifecycle.
- *  - {@link runHarnessChat} owns the per-turn LIFECYCLE (build workspace + Harness,
- *    init, run, tear down), the Harness analogue of runChatStream(). This is what
+ *  - {@link runHarnessTurn} drives ONE turn on an already-built controller: bind
+ *    the thread, subscribe, run, forward events. Pure transport — no lifecycle.
+ *  - {@link runHarnessChat} owns the per-turn LIFECYCLE (build workspace +
+ *    controller, init, run, tear down), the analogue of runChatStream(). This is what
  *    ipc/chat.ts calls behind the default-OFF useHarness flag, replacing
  *    createFiveMAgent + the manual `new Mastra({storage})` approval wrap.
  *
  * Both are exercised by AIMock tests with no IPC or Electron.
  */
-import type { Session } from "@mastra/core/agent-controller";
-import type { Harness } from "@mastra/core/harness";
+import type { AgentController, Session } from "@mastra/core/agent-controller";
 import { InMemoryStore, MastraCompositeStore } from "@mastra/core/storage";
 import { createFiveMHarness, type FiveMHarnessOptions } from "./harness";
 import { applyFiveMPermissions } from "./permissions";
@@ -56,7 +55,10 @@ export interface HarnessTurnOptions {
  * conversation. Errors are surfaced as an `error` event, never thrown, so the
  * stream always terminates cleanly with `__done__`.
  */
-export async function runHarnessTurn(harness: Harness, opts: HarnessTurnOptions): Promise<string> {
+export async function runHarnessTurn(
+  harness: AgentController,
+  opts: HarnessTurnOptions,
+): Promise<string> {
   const session = await harness.createSession({ resourceId: opts.resourceId });
   opts.onSession?.(session);
   // Cancellation: harness:cancel aborts the active run (drops parked tool
@@ -203,9 +205,9 @@ export async function runHarnessChat(
 // it, dispose only on new-session / thread-switch / window-close.
 // ---------------------------------------------------------------------------
 
-/** A live Harness kept alive across the turns of one conversation. */
+/** A live controller kept alive across the turns of one conversation. */
 export interface HarnessRuntime {
-  readonly harness: Harness;
+  readonly harness: AgentController;
   readonly workspace: Awaited<ReturnType<typeof createAndInitWorkspace>>;
   readonly session: Session;
   readonly resourceId: string;
