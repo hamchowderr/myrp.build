@@ -43,17 +43,10 @@ const api = {
     ipcRenderer.invoke("context:findServerExe", serverPath),
   detectContext: (serverPath: string) => ipcRenderer.invoke("context:detect", serverPath),
 
-  // AI-Elements chat (v6 UIMessage stream over IPC — drives useChat transport)
+  // Conversation persistence + generation results. The chat STREAM itself lives
+  // on `harness` below; `start`/`cancel`/`approve` used to be duplicated here for
+  // the retired useChat transport and were removed with it.
   chat: {
-    start: (payload: {
-      text: string;
-      chatId: string;
-      model?: string;
-      accessToken?: string;
-      workspaceId?: string;
-    }): Promise<void> => ipcRenderer.invoke("chat:start", payload),
-    cancel: (): Promise<void> => ipcRenderer.invoke("chat:cancel"),
-    approve: (approved: boolean): Promise<void> => ipcRenderer.invoke("chat:approve", approved),
     clone: (payload: {
       sourceThreadId: string;
       newThreadId: string;
@@ -123,24 +116,8 @@ const api = {
       workspaceId?: string;
     }): Promise<{ ok: boolean; suggestions?: string[]; error?: string }> =>
       ipcRenderer.invoke("chat:suggestFollowups", payload),
-    onApprovalPending: (callback: () => void): (() => void) => {
-      const handler = (): void => callback();
-      ipcRenderer.on("chat:approval_pending", handler);
-      return () => ipcRenderer.removeListener("chat:approval_pending", handler);
-    },
-    onChunk: (callback: (chunk: unknown) => void): (() => void) => {
-      const handler = (_e: Electron.IpcRendererEvent, chunk: unknown): void => callback(chunk);
-      ipcRenderer.on("chat:chunk", handler);
-      return () => ipcRenderer.removeListener("chat:chunk", handler);
-    },
-    onDone: (callback: (payload: { generationId: string | null }) => void): (() => void) => {
-      const handler = (
-        _e: Electron.IpcRendererEvent,
-        payload: { generationId: string | null } | null,
-      ): void => callback(payload ?? { generationId: null });
-      ipcRenderer.on("chat:done", handler);
-      return () => ipcRenderer.removeListener("chat:done", handler);
-    },
+    // Upstream failures main can't express as a harness event: no active server,
+    // and friendlyLlmError (out of credits / bad key / rate limit).
     onError: (callback: (message: string) => void): (() => void) => {
       const handler = (_e: Electron.IpcRendererEvent, message: string): void => callback(message);
       ipcRenderer.on("chat:error", handler);
@@ -158,13 +135,11 @@ const api = {
     },
   },
 
-  // Mastra Harness chat path — alpha, default-OFF. The renderer asks
-  // isEnabled() to pick this path over the legacy `chat` (useChat) one, then
-  // drives `start` (same chat:start handler — it branches on the flag) and folds
-  // `onEvent` (raw AgentControllerEvents + __thread__/__done__ sentinels) via
+  // The generation chat path — the ONLY one. `start` drives the chat:start
+  // handler, which runs a turn on the agent controller; `onEvent` folds the raw
+  // AgentControllerEvents (+ __thread__/__done__/__suspended__ sentinels) via
   // reduceHarnessEvent. `cancel` reuses chat:cancel (same abort controller).
   harness: {
-    isEnabled: (): Promise<boolean> => ipcRenderer.invoke("harness:isEnabled"),
     start: (payload: {
       text: string;
       chatId: string;

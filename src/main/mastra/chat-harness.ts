@@ -9,9 +9,9 @@
  *  - {@link runHarnessTurn} drives ONE turn on an already-built controller: bind
  *    the thread, subscribe, run, forward events. Pure transport — no lifecycle.
  *  - {@link runHarnessChat} owns the per-turn LIFECYCLE (build workspace +
- *    controller, init, run, tear down), the analogue of runChatStream(). This is what
- *    ipc/chat.ts calls behind the default-OFF useHarness flag, replacing
- *    createFiveMAgent + the manual `new Mastra({storage})` approval wrap.
+ *    controller, init, run, tear down), the analogue of the retired
+ *    runChatStream(). This is the ONLY generation path ipc/chat.ts drives; it
+ *    replaced createFiveMAgent + the manual `new Mastra({storage})` approval wrap.
  *
  * Both are exercised by AIMock tests with no IPC or Electron.
  */

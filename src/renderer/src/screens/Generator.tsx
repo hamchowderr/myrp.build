@@ -1,10 +1,9 @@
-import { AEChat } from "@renderer/components/chat/AEChat";
 import { ArtifactPanel } from "@renderer/components/chat/ArtifactPanel";
 import { ConversationSidebar } from "@renderer/components/chat/ConversationSidebar";
 import { HarnessChat } from "@renderer/components/chat/HarnessChat";
 import { HeaderBar } from "@renderer/components/chat/HeaderBar";
 import { ServerStatusControls } from "@renderer/components/chat/ServerStatusControls";
-import { useAEChat } from "@renderer/hooks/useAEChat";
+import { useGenerationResult } from "@renderer/hooks/useGenerationResult";
 import { useServerConsole } from "@renderer/hooks/useServerConsole";
 import { useServerProcess } from "@renderer/hooks/useServerProcess";
 import { useServerStatus } from "@renderer/hooks/useServerStatus";
@@ -49,43 +48,34 @@ export function Generator({
     if (p.isCollapsed()) p.expand();
     else p.collapse();
   }, []);
-  const {
-    messages,
-    isGenerating,
-    result,
-    lastGenerationId,
-    canUndo,
-    awaitingApproval,
-    error,
-    followups,
-    promptHistory,
-    send,
-    clearHistory,
-    newSession,
-    cancel,
-    clone,
-    sessionId,
-    openThread,
-    undo,
-    clearResult,
-  } = useAEChat();
-  // The Harness chat hook is lifted here (not inside HarnessChat) so the sidebar —
-  // a sibling of the chat panel — can drive its openThread/threadId too.
+  // The chat hook is lifted here (not inside HarnessChat) so the sidebar and the
+  // header — siblings of the chat panel — can read its thread id and status too.
   const harness = useHarnessChat();
+  // Generation output (manifest + undo). Separate from the transcript on purpose:
+  // a result outlives the turn that produced it. See useGenerationResult.
+  const { result, canUndo, undo, clearResult, resultCount } = useGenerationResult();
+  // The sidebar re-lists threads whenever this changes. A generation is not the
+  // only thing that adds one — branching does too, and it produces no
+  // `chat:result` — so the signal combines both, or a freshly branched thread
+  // stays invisible until something unrelated happens to refresh the list.
+  const [branchCount, setBranchCount] = useState(0);
+  // Drives the header spinner and the artifact panel's busy state. Previously read
+  // from the retired useChat transport, which no longer streams — so this was
+  // stuck false for every real generation.
+  const isGenerating = harness.status === "streaming";
 
-  // Alpha: when the default-OFF useHarness flag is on (Settings or env
-  // MYRP_USE_HARNESS=1), the middle panel renders the Harness transcript instead
-  // of the legacy useChat path. Resolved once from main (single source of truth).
-  const [useHarness, setUseHarness] = useState(false);
-  useEffect(() => {
-    void window.api.harness.isEnabled().then(setUseHarness);
-  }, []);
+  // Upstream failures main reports outside the harness event stream — no active
+  // server, and friendlyLlmError (out of credits / bad key / rate limit). The
+  // retired chat hook subscribed to these but rendered them into a component that
+  // never mounted, so they were silently swallowed. A toast is not the final home
+  // for them, but it is the difference between seeing "out of credits" and seeing
+  // nothing at all.
+  useEffect(() => window.api.chat.onError((message) => toast.error(message)), []);
 
   const { plan, usageCount, usageLimit, getToken, workspaceId } = useAccount();
 
-  // Open a past conversation on the Harness path: fetch history (auth like the
-  // send path — dev-bypass resolves the seeded token when absent) and seed the
-  // transcript. The legacy path uses useAEChat.openThread instead.
+  // Open a past conversation: fetch history (auth like the send path — dev-bypass
+  // resolves the seeded token when absent) and seed the transcript.
   const openHarnessThread = useCallback(
     async (id: string) => {
       const accessToken = (await getToken().catch(() => null)) ?? undefined;
@@ -96,6 +86,29 @@ export function Generator({
     },
     [harness, getToken, workspaceId],
   );
+
+  // Branch the active conversation: copy it server-side, then open the copy so the
+  // agent keeps the prior context. This used to run against the retired useChat's
+  // message array, which is always empty — so `clone` hit its own
+  // `messages.length === 0` guard and the button silently did nothing.
+  const branchThread = useCallback(async () => {
+    const sourceThreadId = harness.threadId;
+    if (!sourceThreadId || harness.status === "streaming") return;
+    const accessToken = (await getToken().catch(() => null)) ?? undefined;
+    const newThreadId = crypto.randomUUID();
+    const res = await window.api.chat.clone({
+      sourceThreadId,
+      newThreadId,
+      accessToken,
+      ...(workspaceId ? { workspaceId } : {}),
+    });
+    if (!res.ok) {
+      toast.error(res.error ?? "Couldn't branch this conversation.");
+      return;
+    }
+    setBranchCount((n) => n + 1);
+    await openHarnessThread(newThreadId);
+  }, [harness.threadId, harness.status, getToken, workspaceId, openHarnessThread]);
   const { processStatus, refresh: refreshProcess } = useServerProcess();
   const { serverStatus, restartResource } = useServerStatus(processStatus?.running);
   const { entries: consoleEntries, clear: clearConsole } = useServerConsole();
@@ -167,13 +180,11 @@ export function Generator({
             <div className="flex h-full flex-col bg-background">
               <div className="m-1.5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border-subtle/50 bg-card shadow-md">
                 <ConversationSidebar
-                  activeThreadId={useHarness ? (harness.threadId ?? "") : sessionId}
-                  onOpenThread={
-                    useHarness ? (id) => void openHarnessThread(id) : (id) => void openThread(id)
-                  }
-                  onNewSession={useHarness ? harness.reset : newSession}
-                  onBranch={() => void clone()}
-                  refreshSignal={lastGenerationId}
+                  activeThreadId={harness.threadId ?? ""}
+                  onOpenThread={(id) => void openHarnessThread(id)}
+                  onNewSession={harness.reset}
+                  onBranch={() => void branchThread()}
+                  refreshSignal={`${resultCount}:${branchCount}`}
                 />
               </div>
             </div>
@@ -188,34 +199,13 @@ export function Generator({
           <Panel defaultSize={42} minSize={28}>
             <div className="flex h-full flex-col bg-background">
               <div className="m-1.5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border-subtle/50 bg-card shadow-md">
-                {useHarness ? (
-                  <HarnessChat
-                    chat={harness}
-                    context={context}
-                    onOpenSettings={onOpenSettings}
-                    isDark={isDark}
-                    onToggleTheme={onToggleTheme}
-                  />
-                ) : (
-                  <AEChat
-                    messages={messages}
-                    isGenerating={isGenerating}
-                    awaitingApproval={awaitingApproval}
-                    error={error}
-                    followups={followups}
-                    lastGenerationId={lastGenerationId}
-                    context={context}
-                    promptHistory={promptHistory}
-                    canUndo={canUndo}
-                    onUndo={undo}
-                    onSend={send}
-                    onCancel={cancel}
-                    onClearHistory={clearHistory}
-                    onOpenSettings={onOpenSettings}
-                    isDark={isDark}
-                    onToggleTheme={onToggleTheme}
-                  />
-                )}
+                <HarnessChat
+                  chat={harness}
+                  context={context}
+                  onOpenSettings={onOpenSettings}
+                  isDark={isDark}
+                  onToggleTheme={onToggleTheme}
+                />
               </div>
             </div>
           </Panel>

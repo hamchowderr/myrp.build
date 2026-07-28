@@ -608,12 +608,6 @@ export function registerChatHandlers(): void {
     resolve?.(approved);
   });
 
-  // The Harness is the ONLY generation path now; the renderer always drives the
-  // harness hook/channel (harness:event). Retained so the renderer's one-time
-  // probe resolves without special-casing; removed when the renderer drops the
-  // last isEnabled() call.
-  ipcMain.handle("harness:isEnabled", () => true);
-
   // Harness path approval (the policy layer owns the category policy): answer the parked
   // tool-approval gate on the live session. No-op when nothing is awaiting
   // approval. "always_allow_category" grants the gated tool's category for the

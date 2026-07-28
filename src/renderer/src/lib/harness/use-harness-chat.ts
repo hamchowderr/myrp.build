@@ -6,10 +6,9 @@
  * them through the SAME pure `reduceHarnessEvent` reducer into a transcript the
  * AI Elements render.
  *
- * Mirrors useChat's shape (`{ messages, status, sendMessage }`) so the Generator
- * can swap transports behind the default-OFF useHarness flag (window.api.harness
- * .isEnabled()). The main `chat:start` handler branches on the same flag, so
- * `start` here invokes it and the events arrive on `harness:event`.
+ * Keeps useChat's shape (`{ messages, status, sendMessage }`) — the vocabulary
+ * the Generator was already written against. `start` invokes the `chat:start`
+ * handler and the events come back on `harness:event`.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";

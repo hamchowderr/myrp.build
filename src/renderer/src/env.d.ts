@@ -21,15 +21,6 @@ interface Window {
       serverPath: string,
     ) => Promise<import("./lib/types").ServerContext>;
     chat: {
-      start: (payload: {
-        text: string;
-        chatId: string;
-        model?: string;
-        accessToken?: string;
-        workspaceId?: string;
-      }) => Promise<void>;
-      cancel: () => Promise<void>;
-      approve: (approved: boolean) => Promise<void>;
       clone: (payload: {
         sourceThreadId: string;
         newThreadId: string;
@@ -91,18 +82,12 @@ interface Window {
         accessToken?: string;
         workspaceId?: string;
       }) => Promise<{ ok: boolean; suggestions?: string[]; error?: string }>;
-      onApprovalPending: (callback: () => void) => () => void;
-      onChunk: (callback: (chunk: unknown) => void) => () => void;
-      onDone: (
-        callback: (payload: { generationId: string | null }) => void,
-      ) => () => void;
       onError: (callback: (message: string) => void) => () => void;
       onResult: (
         callback: (result: import("./lib/types").GenerationResult) => void,
       ) => () => void;
     };
     harness: {
-      isEnabled: () => Promise<boolean>;
       start: (payload: {
         text: string;
         chatId: string;
