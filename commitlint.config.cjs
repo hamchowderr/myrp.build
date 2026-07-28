@@ -3,16 +3,32 @@
 // The type list is generated from braynee's shared list, so the commit-msg hook,
 // the Claude-side PreToolUse guard and the PR-title CI check cannot disagree.
 module.exports = {
-  extends: ['@commitlint/config-conventional'],
+  extends: ["@commitlint/config-conventional"],
   rules: {
-    'type-enum': [2, 'always', ["feat","fix","perf","refactor","test","docs","build","ci","chore","style","revert"]],
+    "type-enum": [
+      2,
+      "always",
+      [
+        "feat",
+        "fix",
+        "perf",
+        "refactor",
+        "test",
+        "docs",
+        "build",
+        "ci",
+        "chore",
+        "style",
+        "revert",
+      ],
+    ],
     // The rule's target is 50; config-conventional defaults to 100. Warn rather
     // than error: a 60-char subject is worth a nudge, not a rejected commit.
-    'header-max-length': [1, 'always', 50],
+    "header-max-length": [1, "always", 50],
     // beads' prepare-commit-msg hook appends identity trailers BEFORE commitlint
     // runs. Leaving these at error would fail commits for text the committer
     // never wrote.
-    'footer-max-line-length': [0, 'always'],
-    'body-max-line-length': [1, 'always', 100],
+    "footer-max-line-length": [0, "always"],
+    "body-max-line-length": [1, "always", 100],
   },
 };
