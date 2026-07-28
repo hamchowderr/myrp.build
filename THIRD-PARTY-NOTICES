@@ -1,0 +1,85 @@
+THIRD-PARTY NOTICES
+===================
+
+myRP.build is licensed under FSL-1.1-ALv2 (see LICENSE). This file covers the
+third-party components distributed **with** the application — bundled binaries,
+model weights, and vendored knowledge files whose own notices would not
+otherwise travel with them — together with the notable licences among its npm
+dependencies.
+
+Everything listed here is permissive. None of it restricts use of myRP.build,
+including commercial use. Code that myRP.build *generates* belongs to you and is
+covered by none of the below.
+
+Nothing in this file grants rights to ox_overextended resources. myRP.build
+redistributes no ox source; generated resources call ox through runtime exports
+and you install ox yourself. See docs/GENERATED-CODE.md.
+
+
+-------------------------------------------------------------------------------
+Bundled binaries and model weights
+-------------------------------------------------------------------------------
+
+luacheck  —  MIT
+    Copyright (c) 2014-2018 Peter Melnichenko (mpeterv)
+    Shipped as resources/bin/luacheck.exe and used to lint generated Lua.
+    https://github.com/mpeterv/luacheck
+
+lua-language-server  —  MIT
+    Copyright (c) 2018 最萌小汐
+    Shipped under build/lua-language-server/ and used for LSP diagnostics on
+    generated resources. The upstream LICENSE is vendored alongside it.
+    https://github.com/LuaLS/lua-language-server
+
+bge-small-en-v1.5 (model weights)  —  MIT
+    Copyright (c) BAAI (Beijing Academy of Artificial Intelligence)
+    384-dimension embedding weights shipped under build/fastembed-models/ and
+    used for local RAG over the ox knowledge corpus.
+    https://huggingface.co/BAAI/bge-small-en-v1.5
+
+
+-------------------------------------------------------------------------------
+Vendored knowledge files (skills/)
+-------------------------------------------------------------------------------
+
+MariaDB skills  —  MIT
+    Copyright (c) 2026 Robert Silén
+    skills/mariadb-features, skills/mariadb-query-optimization,
+    skills/mariadb-system-versioned-tables, skills/mysql-to-mariadb.
+    Each vendors its own LICENSE file.
+
+lua-quality  —  courtesy credit
+    skills/lua-quality is informed by Manason's "effective-fivem-lua". The
+    content is independently authored — no upstream text is reproduced — so this
+    is an acknowledgement rather than a licence obligation.
+    https://github.com/Manason/effective-fivem-lua
+
+
+-------------------------------------------------------------------------------
+Notable dependency licences
+-------------------------------------------------------------------------------
+
+The npm dependency tree is permissive throughout (MIT / Apache-2.0 / ISC / BSD /
+OFL) with no copyleft. Two are called out because they are shipped as native
+artifacts or carry a non-OSI licence:
+
+onnxruntime-node  —  MIT
+    Runtime for the local embedding model. Native .node addon plus its sibling
+    libraries, shipped unpacked outside the asar.
+
+koffi  —  MIT
+    FFI used by the native integration layer, shipped unpacked.
+
+@mastra/fastembed  —  Apache-2.0
+    Embedding pipeline wrapping the bge-small weights above.
+
+react-leaflet  —  Hippocratic-2.1
+    An ethical-source licence (non-OSI). Its only restriction is against use in
+    human-rights abuses; it is not copyleft and does not restrict this product.
+
+
+-------------------------------------------------------------------------------
+
+Full licence texts ship with each package under node_modules/, and with the
+vendored components at the paths named above. If you believe something is
+missing or misattributed here, please open an issue.
