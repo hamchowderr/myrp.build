@@ -245,6 +245,13 @@ Then launch:
 npm run dev                    # Electron + Vite HMR
 ```
 
+> 🔭 **Want traces?** The agent is instrumented with [`@mastra/observability`](https://mastra.ai/docs/observability/overview). Out of the box spans print to the process log. To send them to your own [Mastra Observe](https://mastra.ai/docs/observability/overview) project instead, add your own token — nothing is routed anywhere else, and it stays off unless you set this:
+>
+> ```bash
+> MASTRA_PLATFORM_ACCESS_TOKEN=...   # your Mastra Platform token
+> MASTRA_PLATFORM_PROJECT_ID=...     # optional — scopes traces to one project
+> ```
+
 > 💾 **Set up chat memory.** myRP.build is a multi-turn chat — follow-ups ("now add a cooldown"), saved threads, and conversation history all run on a local **Supabase** stack (the same Postgres the rest of the app uses). Install the [Supabase CLI](https://supabase.com/docs/guides/cli), then `supabase start` (needs Docker) and `supabase db reset` to seed the local user. _(A one-shot generation will still run without it, but you'd lose memory between turns — so treat this as part of setup.)_
 
 Point the app at your FiveM server on first launch, and you're building. Want a different model? Set `MASTRA_MODEL` (e.g. `openai/gpt-4-turbo`, `google/gemini-2.5-pro`, `ollama/llama3.3:70b`).
