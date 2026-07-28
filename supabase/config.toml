@@ -482,6 +482,15 @@ entrypoint = "./functions/inference-proxy/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/inference-proxy/*.html" ]
 
+[functions.observability-proxy]
+enabled = true
+# The Mastra trace exporter posts here with the user's Supabase session JWT as the
+# bearer. We verify it in-function (same as the other functions) so a rejected token
+# returns clean JSON rather than a platform-level rejection the exporter would retry.
+verify_jwt = false
+import_map = "./functions/observability-proxy/deno.json"
+entrypoint = "./functions/observability-proxy/index.ts"
+
 [functions.billing-return]
 enabled = true
 # Public post-Checkout landing page — Stripe redirects here via a plain browser GET
