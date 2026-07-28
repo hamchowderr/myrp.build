@@ -55,15 +55,7 @@ const ALLOW = [
   {
     cluster: "mastra CLI dev server — brace-expansion DoS via minimatch@3",
     scope: "build",
-    packages: [
-      "@hono/node-ws",
-      "@mastra/deployer",
-      "brace-expansion",
-      "mastra",
-      "minimatch",
-      "serve",
-      "serve-handler",
-    ],
+    packages: ["brace-expansion", "mastra", "minimatch", "serve", "serve-handler"],
     reason:
       "The `mastra` CLI (npm run studio) only. serve-handler@6.1.7 (latest) hard-pins minimatch 3.1.5 " +
       "and calls it as `minimatch(path, pattern)`; minimatch 10 — the only patched line — exports a " +
@@ -79,15 +71,6 @@ const ALLOW = [
       "@ai-sdk/ui-utils-v5 -> 1.2.11 -> provider-utils 2.2.8). The 2.x and 3.x lines have no patched " +
       "release — the fix only exists in 4.x/5.x — so an override would swap the alias for a different " +
       "major and break the shim. Low severity (resource consumption). Upstream @mastra/core must move.",
-  },
-  {
-    cluster: "MCP SDK hono transport",
-    scope: "runtime",
-    packages: ["@hono/node-server"],
-    reason:
-      "@mastra/core -> @modelcontextprotocol/sdk -> @hono/node-server 1.x. The fix is 2.0.5+, a major " +
-      "the SDK does not accept. The advisory is path traversal in hono's serve-static; we use MCP as a " +
-      "client and never serve static files over it, so the vulnerable path is unreachable.",
   },
 ];
 
