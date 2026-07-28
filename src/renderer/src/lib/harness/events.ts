@@ -130,6 +130,23 @@ export const OPTIMISTIC_USER_ID = "__optimistic_user__";
 // biome-ignore lint/suspicious/noExplicitAny: HarnessEvent is a wide discriminated union; we switch on .type
 type AnyEvent = { type: string; [k: string]: any };
 
+/**
+ * Normalize a Harness message onto our array-of-parts contract.
+ *
+ * `message_*` events carry Mastra's `MastraDBMessage`, whose `content` is
+ * `MastraMessageContentV2` — `{ format: 2, parts: [...] }`, an OBJECT. Older
+ * @mastra/core runtimes emitted the bare parts array instead (the declared type
+ * has always been the wrapper; only the runtime changed at >=1.52), and the rest
+ * of the renderer — HarnessChat's `m.content.map`, the text/tool extractors
+ * below — is written against the array. Unwrap here, at the single boundary, so
+ * both shapes work and no `.parts` access leaks into the components.
+ */
+function toContentParts(content: unknown): HarnessContentPart[] {
+  if (Array.isArray(content)) return content as HarnessContentPart[];
+  const parts = (content as { parts?: unknown } | null | undefined)?.parts;
+  return Array.isArray(parts) ? (parts as HarnessContentPart[]) : [];
+}
+
 function upsertMessage(messages: HarnessMessage[], msg: HarnessMessage): HarnessMessage[] {
   const idx = messages.findIndex((m) => m.id === msg.id);
   if (idx === -1) return [...messages, msg];
@@ -217,7 +234,10 @@ export function reduceHarnessEvent(state: HarnessTranscript, event: AnyEvent): H
     case "message_update":
     case "message_end": {
       if (!event.message) return state;
-      const incoming = event.message as HarnessMessage;
+      const incoming = {
+        ...(event.message as HarnessMessage),
+        content: toContentParts((event.message as { content?: unknown }).content),
+      };
       // The Harness echoes the user turn as its own message (role=user, fresh id);
       // drop the optimistic placeholder we rendered on send so it isn't shown twice.
       // Assistant/system messages leave the placeholder untouched.
