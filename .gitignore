@@ -58,6 +58,12 @@ scratch/
 .beads/.beads-credential-key
 .beads/export-state.json
 .beads/interactions.jsonl
+# Per-machine bd state. cc-task-map maps issues to this machine's Claude Code task
+# ids; the dolt-backup pair records a local backup destination and its last sync,
+# and embeds an absolute filesystem path we don't want in a public repo.
+.beads/cc-task-map.json
+.beads/dolt-backup.json
+.beads/dolt-backup-state.json
 # Public repo: keep the beads issue export OUT until the tracker is curated to the
 # public-exclusion policy (no security/credentials/billing/roadmap).
 .beads/issues.jsonl
