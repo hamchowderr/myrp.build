@@ -131,6 +131,8 @@ export function Settings({
                 rconTestError={state.rconTestError}
                 requireApproval={state.requireApproval}
                 onToggleApproval={state.toggleApproval}
+                shareGenerationTraces={state.shareGenerationTraces}
+                onToggleShareTraces={state.toggleShareTraces}
                 onBrowseFolder={state.handleBrowseFolder}
                 onSelectDetectedPath={state.handleSelectDetectedPath}
                 onSaveConnection={state.handleSaveConnection}

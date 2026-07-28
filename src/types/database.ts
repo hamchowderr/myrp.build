@@ -237,6 +237,68 @@ export type Database = {
           },
         ]
       }
+      mastra_ai_spans: {
+        Row: {
+          created_at: string
+          ended_at: string | null
+          error: Json | null
+          is_event: boolean
+          name: string
+          parent_span_id: string | null
+          record: Json
+          resource_id: string | null
+          run_id: string | null
+          span_id: string
+          span_type: string
+          started_at: string
+          thread_id: string | null
+          trace_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          ended_at?: string | null
+          error?: Json | null
+          is_event?: boolean
+          name: string
+          parent_span_id?: string | null
+          record: Json
+          resource_id?: string | null
+          run_id?: string | null
+          span_id: string
+          span_type: string
+          started_at: string
+          thread_id?: string | null
+          trace_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          ended_at?: string | null
+          error?: Json | null
+          is_event?: boolean
+          name?: string
+          parent_span_id?: string | null
+          record?: Json
+          resource_id?: string | null
+          run_id?: string | null
+          span_id?: string
+          span_type?: string
+          started_at?: string
+          thread_id?: string | null
+          trace_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mastra_ai_spans_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mastra_messages: {
         Row: {
           author_email: string | null
@@ -770,6 +832,10 @@ export type Database = {
           p_working_memory?: string
           p_workspace_id: string
         }
+        Returns: undefined
+      }
+      mastra_save_spans: {
+        Args: { p_spans: Json; p_workspace_id: string }
         Returns: undefined
       }
       mastra_save_thread: {

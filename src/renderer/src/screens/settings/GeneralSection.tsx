@@ -25,6 +25,8 @@ interface GeneralSectionProps {
   rconTestError: string | undefined;
   requireApproval: boolean;
   onToggleApproval: (value: boolean) => void;
+  shareGenerationTraces: boolean;
+  onToggleShareTraces: (value: boolean) => void;
   onBrowseFolder: () => void;
   onSelectDetectedPath: (path: string) => void;
   onSaveConnection: () => void;
@@ -63,6 +65,8 @@ export function GeneralSection({
   rconTestError,
   requireApproval,
   onToggleApproval,
+  shareGenerationTraces,
+  onToggleShareTraces,
   onBrowseFolder,
   onSelectDetectedPath,
   onSaveConnection,
@@ -424,6 +428,26 @@ export function GeneralSection({
           className="h-7 px-3 text-[11px] data-[state=on]:bg-chart-2/20 data-[state=on]:text-chart-2"
         >
           {requireApproval ? "On" : "Off"}
+        </Toggle>
+      </SettingsRow>
+
+      {/* Privacy */}
+      <div className="pt-4">
+        <SectionHeader title="Privacy" />
+        <Separator className="mb-1" />
+      </div>
+
+      <SettingsRow
+        label="Share generation traces"
+        description="When on, AI trace spans from your generation runs are saved to your workspace's cloud store so you can review them. Scoped to your workspace; turn off to keep runs untraced."
+      >
+        <Toggle
+          size="sm"
+          pressed={shareGenerationTraces}
+          onPressedChange={onToggleShareTraces}
+          className="h-7 px-3 text-[11px] data-[state=on]:bg-chart-2/20 data-[state=on]:text-chart-2"
+        >
+          {shareGenerationTraces ? "On" : "Off"}
         </Toggle>
       </SettingsRow>
     </div>

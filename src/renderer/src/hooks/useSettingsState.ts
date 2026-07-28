@@ -35,6 +35,14 @@ export function useSettingsState(settings: AppSettings) {
     setRequireApproval(value);
     await window.api.saveSettings({ ...settings, requireApproval: value });
   }
+  const [shareGenerationTraces, setShareGenerationTraces] = useState(
+    settings.shareGenerationTraces ?? true,
+  );
+
+  async function toggleShareTraces(value: boolean): Promise<void> {
+    setShareGenerationTraces(value);
+    await window.api.saveSettings({ ...settings, shareGenerationTraces: value });
+  }
   const [serverExePath, setServerExePath] = useState(activeServer?.serverExePath ?? "");
   const [connectionSaved, setConnectionSaved] = useState(false);
   const [rconTestState, setRconTestState] = useState<"idle" | "testing" | "ok" | "fail">("idle");
@@ -295,6 +303,8 @@ export function useSettingsState(settings: AppSettings) {
     handleSelectDetectedPath,
     requireApproval,
     toggleApproval,
+    shareGenerationTraces,
+    toggleShareTraces,
     handleSaveConnection,
     handleBrowseExe,
     handleTestRcon,
