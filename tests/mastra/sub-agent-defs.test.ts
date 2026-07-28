@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { createSubAgentDefs } from "../../src/main/mastra/sub-agents";
 
 /**
- * The Harness-native specialist definitions. Verifies the
+ * The controller-native specialist definitions. Verifies the
  * isolation knobs (allowedWorkspaceTools + forked) are scoped per role, so when
- * the live path passes these to `new Harness({ subagents })` each specialist sees only the
+ * the live path passes these to `new AgentController({ subagents })` each specialist sees only the
  * workspace tools its job needs. No LLM, no workspace — pure shape assertions.
  */
 const WRITE_FILE = "mastra_workspace_write_file";
