@@ -1,6 +1,6 @@
 {
   "name": "myrp-build",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "AI-powered resource generator for FiveM server developers",
   "main": "./out/main/index.js",
   "author": "Otaku Solutions",
