@@ -352,7 +352,8 @@ describe("cloneServerRepo", () => {
       (c[1] as string[]).join(" ").includes("remote set-url"),
     );
     // origin is reset to the CLEAN url — no token left in .git/config
-    expect((setUrl?.[1] as string[])[3]).toBe("https://github.com/octocat/srv.git");
+    const setUrlArgs = setUrl?.[1] as string[] | undefined;
+    expect(setUrlArgs?.[3]).toBe("https://github.com/octocat/srv.git");
   });
 
   it("refuses to overwrite an existing folder", async () => {

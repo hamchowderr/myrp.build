@@ -19,6 +19,7 @@
     "dev:prod": "infisical run --projectId e56e0da5-6460-4bab-bdd6-2fd12ac5447b --env prod --path /myrp-build --recursive --silent -- electron-vite dev",
     "dev:auth": "node scripts/dev-auth.mjs",
     "db:drift-check": "node scripts/db-drift-check.mjs",
+    "deps:check": "node scripts/deps-check.mjs",
     "db:seed-corpus": "node scripts/seed-ox-corpus.mjs",
     "ox:currency": "node scripts/check-ox-currency.mjs",
     "build": "npm run typecheck && electron-vite build --mode development",
@@ -38,6 +39,9 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "studio": "mastra dev --dir studio --env .env"
+  },
+  "overrides": {
+    "adm-zip": "^0.6.0"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.12",
