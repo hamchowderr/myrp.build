@@ -513,14 +513,23 @@ export function registerChatHandlers(): void {
                     },
                   }
                 : {}),
-              // Mastra AI tracing. DEV/owner → ConsoleExporter (spans to the log).
-              // PROD → MastraStorageExporter into the cloud `observability` domain
-              // (cloud.storage), gated on an authenticated run + the opt-out consent
-              // flag (default on). No sink when signed-out or opted out.
+              // Mastra AI tracing. DEV/self-host → ConsoleExporter (spans to the log),
+              // plus the operator's OWN Mastra Observe project if they set
+              // MASTRA_PLATFORM_ACCESS_TOKEN. PROD → MastraStorageExporter into the
+              // cloud `observability` domain (cloud.storage), plus Mastra Observe via
+              // the observability-proxy edge function when one is deployed (the proxy
+              // holds the platform token; the client sends only the user's own JWT).
+              // Gated on an authenticated run + the opt-out consent flag (default on):
+              // no sink at all when signed-out or opted out.
               ...(DEV_BYPASS
                 ? { observability: createFiveMObservability() }
                 : cloud && settings.shareGenerationTraces !== false
-                  ? { observability: createProdObservability() }
+                  ? {
+                      observability: createProdObservability({
+                        proxyUrl: process.env.OBSERVABILITY_PROXY_URL,
+                        accessToken: payload.accessToken,
+                      }),
+                    }
                   : {}),
             });
             state.harnessRuntime = runtime;
