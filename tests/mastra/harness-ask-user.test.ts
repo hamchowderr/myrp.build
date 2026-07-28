@@ -61,7 +61,11 @@ describe("Harness ask_user suspension + resume (AIMock + FiveM policy)", () => {
     const session = await harness.createSession({ resourceId: "ws_t__srv_t" });
     await applyFiveMPermissions(session, { requireApproval: true });
     const events: HarnessWireEvent[] = [];
-    const unsubscribe = session.subscribe((e) => events.push(e as HarnessWireEvent));
+    // Braces matter: `push` returns a number and the listener is typed
+    // `void | Promise<void>`, so a bare expression body is a type error.
+    const unsubscribe = session.subscribe((e) => {
+      events.push(e as HarnessWireEvent);
+    });
     await session.thread.create({ title: "Chat" });
 
     // sendMessage resolves at the suspension (the run pauses for the answer).
@@ -76,8 +80,12 @@ describe("Harness ask_user suspension + resume (AIMock + FiveM policy)", () => {
     );
 
     // Answer it → respondToToolSuspension drives the resumed run to completion.
+    // toolCallId comes off the event's index signature as `unknown`; assert it is
+    // really there rather than casting the possibly-undefined event to a shape.
+    const toolCallId = susp?.toolCallId;
+    expect(typeof toolCallId).toBe("string");
     await session.respondToToolSuspension({
-      toolCallId: (susp as { toolCallId: string }).toolCallId,
+      toolCallId: toolCallId as string,
       resumeData: "ox",
     });
     unsubscribe();
