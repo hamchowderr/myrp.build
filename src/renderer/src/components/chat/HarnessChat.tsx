@@ -506,9 +506,19 @@ export function HarnessChat({
                 <TaskContent>
                   {activeSubagents.map((s) => (
                     <TaskItem key={s.toolCallId}>
-                      <Shimmer className="text-xs">
-                        {`${s.agentType}${s.currentTool ? ` · ${s.currentTool}` : ` · ${s.task}`}`}
-                      </Shimmer>
+                      <div className="min-w-0">
+                        <Shimmer className="text-xs">
+                          {`${s.agentType}${s.currentTool ? ` · ${s.currentTool}` : ` · ${s.task}`}`}
+                        </Shimmer>
+                        {/* The specialist's own streamed output. Tail-only and clamped:
+                            this is a progress signal, not a transcript — the full result
+                            lands in the delegation card when the subagent finishes. */}
+                        {s.text && (
+                          <p className="mt-0.5 line-clamp-2 whitespace-pre-wrap break-words text-[11px] text-muted-foreground">
+                            {s.text.slice(-300)}
+                          </p>
+                        )}
+                      </div>
                     </TaskItem>
                   ))}
                 </TaskContent>
