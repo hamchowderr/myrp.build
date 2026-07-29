@@ -347,6 +347,8 @@ export function HarnessChat({
     usage,
     lastGenerationId,
     sources,
+    terminal,
+    workspace,
     error,
   } = transcript;
   const resultsById = collectToolResults(messages);
@@ -532,7 +534,9 @@ export function HarnessChat({
                     <TaskItem key={s.toolCallId}>
                       <div className="min-w-0">
                         <Shimmer className="text-xs">
-                          {`${s.agentType}${s.currentTool ? ` · ${s.currentTool}` : ` · ${s.task}`}`}
+                          {`${s.agentType}${s.modelId ? ` (${s.modelId.split("/").pop()})` : ""}${
+                            s.currentTool ? ` · ${s.currentTool}` : ` · ${s.task}`
+                          }`}
                         </Shimmer>
                         {/* The specialist's own streamed output. Tail-only and clamped:
                             this is a progress signal, not a transcript — the full result
@@ -547,6 +551,25 @@ export function HarnessChat({
                   ))}
                 </TaskContent>
               </Task>
+            )}
+
+            {/* Live sandbox output. The validator and luacheck runs are shell
+              commands, so this is where a failing check explains itself while it
+              happens rather than after. Tail-clamped — the artifact panel's
+              Terminal tab is the place for the full FXServer console. */}
+            {terminal.output && (
+              <pre className="max-h-40 overflow-y-auto whitespace-pre-wrap break-all rounded-md bg-muted/40 p-2 font-mono text-[11px] text-muted-foreground">
+                {terminal.output.slice(-2000)}
+                {terminal.running && <span className="animate-pulse">▍</span>}
+              </pre>
+            )}
+
+            {/* A workspace that never became ready explains an otherwise
+              inexplicable run — the agent simply cannot read or write. */}
+            {workspace && workspace.status !== "ready" && (
+              <p className="text-[11px] text-muted-foreground">
+                {`Workspace: ${workspace.status}${workspace.error ? ` — ${workspace.error}` : ""}`}
+              </p>
             )}
 
             {/* Suspended tools awaiting a human answer (ask_user / submit_plan):

@@ -268,6 +268,94 @@ describe("reduceHarnessEvent", () => {
     expect(t.activeTools.find((x) => x.toolCallId === "c2")?.argsText).toBe("BBB");
   });
 
+  it("shows a tool whose arguments never streamed", () => {
+    // A tool with no arguments (or delivered complete) emits no tool_input_* at
+    // all, so tool_start is the only chance to show it before it finishes.
+    let t = reduceHarnessEvent(emptyTranscript(), {
+      type: "tool_start",
+      toolCallId: "c9",
+      toolName: "server_status",
+      args: { verbose: true },
+    });
+    expect(t.activeTools).toHaveLength(1);
+    expect(t.activeTools[0]).toMatchObject({ name: "server_status", state: "input-available" });
+    expect(t.activeTools[0].argsText).toContain("verbose");
+
+    // And it must not duplicate an entry the input stream already opened.
+    t = reduceHarnessEvent(t, { type: "tool_start", toolCallId: "c9", toolName: "server_status" });
+    expect(t.activeTools).toHaveLength(1);
+  });
+
+  it("streams shell output and settles the caret when the command ends", () => {
+    let t = reduceHarnessEvent(emptyTranscript(), { type: "shell_output", output: "checking" });
+    t = reduceHarnessEvent(t, { type: "shell_output", output: " ok\n" });
+    expect(t.terminal).toMatchObject({ output: "checking ok\n", running: true });
+
+    t = reduceHarnessEvent(t, { type: "tool_end", toolCallId: "c1" });
+    // Output is kept — only the "still running" state clears.
+    expect(t.terminal).toMatchObject({ output: "checking ok\n", running: false });
+  });
+
+  it("tracks workspace lifecycle, including a status that never reaches ready", () => {
+    let t = reduceHarnessEvent(emptyTranscript(), {
+      type: "workspace_ready",
+      workspaceName: "myrp-build",
+    });
+    expect(t.workspace).toMatchObject({ status: "ready", name: "myrp-build" });
+
+    t = reduceHarnessEvent(t, {
+      type: "workspace_status_changed",
+      status: "degraded",
+      error: "sandbox unavailable",
+    });
+    expect(t.workspace).toMatchObject({ status: "degraded", error: "sandbox unavailable" });
+  });
+
+  it("drops a suspension that was cancelled rather than answered", () => {
+    let t = reduceHarnessEvent(emptyTranscript(), {
+      type: "tool_suspended",
+      toolCallId: "s1",
+      toolName: "ask_user",
+      suspendPayload: { question: "which framework?" },
+    });
+    expect(t.pendingSuspensions).toHaveLength(1);
+    // Withdrawn — nothing is listening for the answer any more.
+    t = reduceHarnessEvent(t, { type: "tool_suspension_cancelled", toolCallId: "s1" });
+    expect(t.pendingSuspensions).toHaveLength(0);
+  });
+
+  it("keeps a specialist's model current across a mid-run switch", () => {
+    let t = reduceHarnessEvent(emptyTranscript(), {
+      type: "subagent_start",
+      toolCallId: "sa1",
+      agentType: "lua-specialist",
+      task: "write it",
+      modelId: "anthropic/claude-sonnet-4-5",
+    });
+    expect(t.activeSubagents[0].modelId).toBe("anthropic/claude-sonnet-4-5");
+
+    t = reduceHarnessEvent(t, {
+      type: "subagent_model_changed",
+      agentType: "lua-specialist",
+      modelId: "anthropic/claude-haiku-4-5",
+    });
+    expect(t.activeSubagents[0].modelId).toBe("anthropic/claude-haiku-4-5");
+  });
+
+  it("clears in-flight tools on error, not just on a clean finish", () => {
+    // An errored call never sends tool_end, so without this a half-typed tool
+    // would sit frozen beside the error message.
+    let t = reduceHarnessEvent(emptyTranscript(), {
+      type: "tool_input_start",
+      toolCallId: "c1",
+      toolName: "write_file",
+    });
+    t = reduceHarnessEvent(t, { type: "tool_input_delta", toolCallId: "c1", argsTextDelta: '{"p' });
+    t = reduceHarnessEvent(t, { type: "error", error: "rate limited" });
+    expect(t.activeTools).toHaveLength(0);
+    expect(t.error).toBe("rate limited");
+  });
+
   it("surfaces workspace_error instead of dropping it", () => {
     // It arrives on its own channel, so before this it fell through to `default`
     // and the run looked healthy while the agent could not write anything.
