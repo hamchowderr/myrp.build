@@ -23,12 +23,13 @@ import { setupAimock } from "../setup/aimock";
  * investigation established that `subagent` was offered all along and the
  * problem lay elsewhere.
  *
- * Scope note: an earlier version also asserted the supervisor had NO write tools.
- * That change is reverted — see the note on SUPERVISOR_TOOLS — because removing
- * them stopped direct writes without producing delegation, so the agent wrote
- * nothing at all. What is asserted here is the surface delegation DEPENDS on,
- * which is a real regression risk regardless of how the delegation problem is
- * eventually solved.
+ * Scope note: an earlier version asserted the supervisor had NO write tools.
+ * That is now inverted. The size gate (myrp-build-u1y) makes the supervisor the
+ * intended author of SMALL builds, so write_file is a REQUIRED part of its
+ * surface — see the note on SUPERVISOR_TOOLS. Both halves are asserted here:
+ * the delegation surface a FULL build needs, and the authoring surface a SMALL
+ * build needs. Each is a real regression risk, and they pull in opposite
+ * directions, so neither is safe to leave unpinned.
  */
 const getAimock = setupAimock();
 
@@ -50,6 +51,15 @@ function offeredTools(): string[] {
   const body = captured[0];
   const tools = (body?.tools ?? []) as Array<Record<string, unknown>>;
   return tools.map((t) => (t.function as { name?: string } | undefined)?.name ?? String(t.name));
+}
+
+/** Concatenated system-message text in the first captured completions request. */
+function systemPrompt(): string {
+  const messages = (captured[0]?.messages ?? []) as Array<Record<string, unknown>>;
+  return messages
+    .filter((m) => m.role === "system")
+    .map((m) => (typeof m.content === "string" ? m.content : JSON.stringify(m.content)))
+    .join("\n");
 }
 
 describe("supervisor tool scope", () => {
@@ -111,5 +121,31 @@ describe("supervisor tool scope", () => {
     expect(names).toContain(WORKSPACE_TOOLS.FILESYSTEM.READ_FILE);
     expect(names).toContain(WORKSPACE_TOOLS.SEARCH.SEARCH);
     expect(names).toContain("validate_resource");
+  }, 120_000);
+
+  // The SMALL lane instructs the supervisor to author the files itself. If a
+  // future `availableTools` allowlist strips these, that instruction becomes
+  // unfollowable and every one-command resource falls back to seven serial
+  // specialists — the exact cost the size gate exists to remove.
+  it("keeps the authoring tools the SMALL lane requires", async () => {
+    await sendHarnessTurn(runtime, { text: "make manifest", send: () => {} });
+    const names = offeredTools();
+
+    expect(names).toContain(WORKSPACE_TOOLS.FILESYSTEM.WRITE_FILE);
+    expect(names).toContain(WORKSPACE_TOOLS.FILESYSTEM.EDIT_FILE);
+    expect(names).toContain(WORKSPACE_TOOLS.FILESYSTEM.MKDIR);
+  }, 120_000);
+
+  // Tools without the instruction is the pre-gate state: the supervisor wrote
+  // files because it could, not because it had sized the build. Assert the rule
+  // reaches the model, in the payload rather than by importing the constant.
+  it("delivers the size gate in the system prompt", async () => {
+    await sendHarnessTurn(runtime, { text: "make manifest", send: () => {} });
+    const system = systemPrompt();
+
+    expect(system).toContain("SIZE THE BUILD");
+    expect(system).toContain("SMALL");
+    expect(system).toContain("FULL");
+    expect(system).toMatch(/WRITE THESE FILES YOURSELF/);
   }, 120_000);
 });

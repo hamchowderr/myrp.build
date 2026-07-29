@@ -21,10 +21,11 @@
  *  - storage   = the MastraCompositeStore — Supabase memory + InMemory
  *                workflows; persists threads/messages/state.
  *  - memory    = the per-tenant Mastra Memory (semantic recall + working memory).
- *  - modes     = a single `generate` mode (the app's one job), scoped by
- *                `availableTools` so the supervisor CANNOT write files — see
- *                SUPERVISOR_TOOLS. A `plan` mode (submit_plan HITL) can be added
- *                later via transitionsTo.
+ *  - modes     = a single `generate` mode (the app's one job), deliberately with
+ *                NO `availableTools` scoping: the supervisor keeps write_file so
+ *                it can author SMALL builds itself (prompt.ts step 0). See
+ *                SUPERVISOR_TOOLS for why the allowlist is not applied. A `plan`
+ *                mode (submit_plan HITL) can be added later via transitionsTo.
  */
 
 import { AgentController, type ToolCategory } from "@mastra/core/agent-controller";
@@ -83,18 +84,24 @@ export function fivemToolCategory(toolName: string): ToolCategory | null {
 }
 
 /**
- * NOT CURRENTLY APPLIED — kept because the analysis behind it is sound and the
- * next attempt should start here rather than rediscover it.
+ * NOT APPLIED, AND APPLYING IT NOW WOULD BE A REGRESSION — kept only because the
+ * original analysis is worth not rediscovering.
  *
  * Wiring this as `generate`'s `availableTools` DID stop the supervisor writing
  * files directly. It did NOT produce delegation: across two clean runs the agent
  * acknowledged the request and then ended the turn having written nothing at all,
  * with no error in the log. That is worse than the behaviour it replaced — wrong
- * code beats no code — so it is reverted until the reason is understood.
+ * code beats no code — so it was reverted.
  *
- * What is established: removing the means does not by itself create the habit.
- * Something else has to make `subagent` the obvious next action once writing is
- * impossible, and that is not yet known.
+ * What that established: removing the means does not by itself create the habit.
+ *
+ * The size gate (myrp-build-u1y, prompt.ts step 0) then took the opposite
+ * position — the supervisor writing a one-file resource itself is CORRECT, per
+ * Mastra's own "don't delegate a single task" guidance — so the supervisor now
+ * NEEDS write_file/edit_file/mkdir. Removing them would break the SMALL lane and
+ * send every /ping command back through seven serial specialists. If you ever do
+ * want authoring off the supervisor, that is a per-mode decision (a future `plan`
+ * mode), not a blanket allowlist on `generate`.
  *
  * Original rationale below.
  *
@@ -189,8 +196,8 @@ export function createFiveMHarness(
     workspace,
     storage,
     ...(opts.memory ? { memory: opts.memory } : {}),
-    // The allowlist is what makes "you coordinate, the specialists write" true
-    // rather than merely requested — see SUPERVISOR_TOOLS.
+    // No `availableTools` on purpose — the supervisor must keep write_file to
+    // author SMALL builds itself (prompt.ts step 0). See SUPERVISOR_TOOLS.
     modes: [{ id: "generate", name: "Generate" }],
     subagents: createSubAgentDefs(),
     // Permission categories for HITL; the policy layer wires the gating policy + suspend/resume.
