@@ -202,6 +202,14 @@ export function createSubAgentDefs(): AgentControllerSubagent[] {
     defaultModelId: s.model,
     allowedWorkspaceTools: s.allowedWorkspaceTools,
     forked: false,
+    // A specialist runs its OWN agentic loop, and without a budget that loop has
+    // no end. Observed live: context-scout kept grepping for ten minutes —
+    // fxmanifests, then heal-command, then ox_lib usage, then again — and the
+    // generation never reached the writing step. The supervisor has had
+    // `maxSteps: 30` all along (agent-config.ts); the specialists had nothing,
+    // so the one budget that mattered for a delegated run was missing.
+    // 30 matches both the supervisor and Mastra's own subagent example.
+    maxSteps: 30,
   }));
 }
 
