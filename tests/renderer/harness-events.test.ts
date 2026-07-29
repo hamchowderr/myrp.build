@@ -202,6 +202,72 @@ describe("reduceHarnessEvent", () => {
     expect(t.activeSubagents.find((s) => s.toolCallId === "sa2")?.text).toBeUndefined();
   });
 
+  it("streams tool arguments, then drops the entry when the call completes", () => {
+    // Verified against a real AIMock run: one write_file call emits
+    // tool_input_start, SIX tool_input_delta, then tool_input_end. Those deltas are
+    // partial JSON — the point is showing them as they arrive.
+    let t = reduceHarnessEvent(emptyTranscript(), {
+      type: "tool_input_start",
+      toolCallId: "c1",
+      toolName: "mastra_workspace_write_file",
+    });
+    expect(t.activeTools[0]).toMatchObject({ state: "input-streaming", argsText: "" });
+
+    t = reduceHarnessEvent(t, {
+      type: "tool_input_delta",
+      toolCallId: "c1",
+      argsTextDelta: '{"path":"[local]/tes',
+    });
+    t = reduceHarnessEvent(t, {
+      type: "tool_input_delta",
+      toolCallId: "c1",
+      argsTextDelta: 't/fxmanifest.lua"}',
+    });
+    expect(t.activeTools[0].argsText).toBe('{"path":"[local]/test/fxmanifest.lua"}');
+
+    t = reduceHarnessEvent(t, { type: "tool_input_end", toolCallId: "c1" });
+    expect(t.activeTools[0].state).toBe("input-available");
+
+    // Once it finishes it renders from message content — keeping the streaming
+    // entry would show the same tool twice.
+    t = reduceHarnessEvent(t, { type: "tool_end", toolCallId: "c1" });
+    expect(t.activeTools).toHaveLength(0);
+  });
+
+  it("does not leave a half-typed tool frozen when a run ends mid-stream", () => {
+    let t = reduceHarnessEvent(emptyTranscript(), {
+      type: "tool_input_start",
+      toolCallId: "c1",
+      toolName: "mastra_workspace_write_file",
+    });
+    t = reduceHarnessEvent(t, {
+      type: "tool_input_delta",
+      toolCallId: "c1",
+      argsTextDelta: '{"pa',
+    });
+    expect(t.activeTools).toHaveLength(1);
+    // Aborted or errored: no tool_end ever arrives for this call.
+    t = reduceHarnessEvent(t, { type: "__done__" });
+    expect(t.activeTools).toHaveLength(0);
+  });
+
+  it("keeps concurrent tool argument streams separate", () => {
+    let t = reduceHarnessEvent(emptyTranscript(), {
+      type: "tool_input_start",
+      toolCallId: "c1",
+      toolName: "write_file",
+    });
+    t = reduceHarnessEvent(t, {
+      type: "tool_input_start",
+      toolCallId: "c2",
+      toolName: "read_file",
+    });
+    t = reduceHarnessEvent(t, { type: "tool_input_delta", toolCallId: "c1", argsTextDelta: "AAA" });
+    t = reduceHarnessEvent(t, { type: "tool_input_delta", toolCallId: "c2", argsTextDelta: "BBB" });
+    expect(t.activeTools.find((x) => x.toolCallId === "c1")?.argsText).toBe("AAA");
+    expect(t.activeTools.find((x) => x.toolCallId === "c2")?.argsText).toBe("BBB");
+  });
+
   it("surfaces workspace_error instead of dropping it", () => {
     // It arrives on its own channel, so before this it fell through to `default`
     // and the run looked healthy while the agent could not write anything.

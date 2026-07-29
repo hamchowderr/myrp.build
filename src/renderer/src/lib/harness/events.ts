@@ -90,11 +90,30 @@ export type HarnessSource = {
   similarity: number;
 };
 
+/**
+ * A tool call whose ARGUMENTS are still streaming in.
+ *
+ * The model emits its tool arguments as JSON text chunks (`tool_input_delta`,
+ * ~6 per call) before the call is complete. Rendering those chunks is what turns
+ * "a spinner, then a file appears" into watching the agent choose the path and
+ * write the body. The finished call is rendered from message content instead, so
+ * an entry here is dropped as soon as that happens.
+ */
+export type ActiveTool = {
+  toolCallId: string;
+  name: string;
+  /** Raw partial JSON — NOT parseable mid-stream; render as text. */
+  argsText: string;
+  state: "input-streaming" | "input-available";
+};
+
 /** What the IPC consumer folds events into and the view renders. */
 export type HarnessTranscript = {
   threadId: string | null;
   messages: HarnessMessage[];
   tasks: HarnessTaskItem[];
+  /** Tool calls whose arguments are still streaming (see {@link ActiveTool}). */
+  activeTools: ActiveTool[];
   pendingApproval: PendingApproval | null;
   /** Tools suspended awaiting a human response (ask_user / request_access). */
   pendingSuspensions: PendingSuspension[];
@@ -117,6 +136,7 @@ export const emptyTranscript = (): HarnessTranscript => ({
   threadId: null,
   messages: [],
   tasks: [],
+  activeTools: [],
   pendingApproval: null,
   pendingSuspensions: [],
   activeSubagents: [],
@@ -181,6 +201,9 @@ export function reduceHarnessEvent(state: HarnessTranscript, event: AnyEvent): H
         pendingApproval: null,
         pendingSuspensions: [],
         activeSubagents: [],
+        // A run that ends mid-stream (abort, error) would otherwise leave a tool
+        // frozen at half-typed arguments forever.
+        activeTools: [],
       };
     // The turn parked on an ask_user/submit_plan suspension: the run is idle
     // awaiting the user's answer. Unlike __done__, the suspension card MUST stay
@@ -197,6 +220,9 @@ export function reduceHarnessEvent(state: HarnessTranscript, event: AnyEvent): H
         pendingSuspensions: state.pendingSuspensions.filter(
           (s) => s.toolCallId !== event.toolCallId,
         ),
+        // The finished call is rendered from message content; drop the streaming
+        // entry so the same tool isn't shown twice.
+        activeTools: state.activeTools.filter((t) => t.toolCallId !== event.toolCallId),
       };
     // The run ended: clear the run-scoped transients (gate + subagents). Do NOT
     // clear pendingSuspensions here — an ask_user/submit_plan suspension parks the
@@ -242,6 +268,39 @@ export function reduceHarnessEvent(state: HarnessTranscript, event: AnyEvent): H
         ...state,
         activeSubagents: state.activeSubagents.map((s) =>
           s.toolCallId === event.toolCallId ? { ...s, currentTool: undefined } : s,
+        ),
+      };
+    // ---- Streaming tool arguments -------------------------------------------
+    // The model streams a tool's arguments as JSON text chunks before the call is
+    // complete. Folding them lets the UI show the path being chosen and the body
+    // being written, instead of a spinner followed by a finished file.
+    case "tool_input_start":
+      return {
+        ...state,
+        activeTools: [
+          ...state.activeTools.filter((t) => t.toolCallId !== event.toolCallId),
+          {
+            toolCallId: String(event.toolCallId ?? ""),
+            name: String(event.toolName ?? ""),
+            argsText: "",
+            state: "input-streaming",
+          },
+        ],
+      };
+    case "tool_input_delta":
+      return {
+        ...state,
+        activeTools: state.activeTools.map((t) =>
+          t.toolCallId === event.toolCallId
+            ? { ...t, argsText: t.argsText + String(event.argsTextDelta ?? "") }
+            : t,
+        ),
+      };
+    case "tool_input_end":
+      return {
+        ...state,
+        activeTools: state.activeTools.map((t) =>
+          t.toolCallId === event.toolCallId ? { ...t, state: "input-available" } : t,
         ),
       };
     // Live output from a specialist — the only signal that a long delegation is
