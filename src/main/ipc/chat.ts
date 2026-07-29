@@ -47,7 +47,11 @@ import { oxSkillPaths } from "../mastra/workspace";
 import { keepAwake, notify } from "../native-features";
 import { type OxSource, queryOxContext } from "../rag";
 import { readSettings, state } from "../shared-state";
-import { createWriteTracker, finalizeGeneration } from "./generation-finalize";
+import {
+  createWriteTracker,
+  finalizeGeneration,
+  writtenPathFromEvent,
+} from "./generation-finalize";
 
 /** Cheap, fast model for the OM Observer + Reflector background agents. */
 const OBSERVER_MODEL_ID = "anthropic/claude-haiku-4-5";
@@ -443,10 +447,9 @@ export function registerChatHandlers(): void {
           // then forward to the renderer's harness hook. Captured by state.harnessResume
           // so a later respondSuspension keeps writing to the SAME tracker.
           const forwardEvent = (e: HarnessWireEvent): void => {
-            if (e.type === "tool_start" && e.toolName === WORKSPACE_TOOLS.FILESYSTEM.WRITE_FILE) {
-              const path = (e.args as { path?: string } | undefined)?.path;
-              if (typeof path === "string") tracker.trackPath(path);
-            }
+            // Covers supervisor AND specialist writes — see writtenPathFromEvent.
+            const written = writtenPathFromEvent(e, WORKSPACE_TOOLS.FILESYSTEM.WRITE_FILE);
+            if (written) tracker.trackPath(written);
             send("harness:event", e);
           };
           // Finalize once the turn actually COMPLETES (immediately, or after an
