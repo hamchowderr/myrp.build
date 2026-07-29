@@ -1,9 +1,10 @@
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { InMemoryStore, MastraCompositeStore } from "@mastra/core/storage";
 import { WORKSPACE_TOOLS } from "@mastra/core/workspace";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { writtenPathFromEvent } from "../../src/main/ipc/generation-finalize";
 import {
   type HarnessWireEvent,
   runHarnessChat,
@@ -74,39 +75,53 @@ describe("runHarnessTurn → reduceHarnessEvents", () => {
 });
 
 /**
- * Verifies the file-tree TAP SOURCE: the Harness emits a
- * `tool_start` for the write_file tool (carrying toolName + args.path) BEFORE it
- * executes, which is what ipc/chat.ts taps to build the GenerationResult. Also
- * confirms the write actually lands on disk. The write-resource fixture drives a
- * single mastra_workspace_write_file call.
+ * The file-tree TAP SOURCE that ipc/chat.ts uses to build the GenerationResult.
+ *
+ * This used to drive AIMock and assert the supervisor's own write landed on disk.
+ * That is no longer possible on purpose: the supervisor's authoring tools were
+ * removed (SUPERVISOR_TOOLS in mastra/harness.ts) so it must delegate, and
+ * `availableTools` blocks execution as well as visibility — the fixture's direct
+ * write_file call is now refused. Specialists author the files instead, and their
+ * calls arrive as `subagent_tool_start` with args under `subToolArgs`.
+ *
+ * So the tap is tested directly rather than through a round trip. A miss here is
+ * silent and expensive: the file exists on disk but never reaches the manifest,
+ * so it cannot be undone and never shows in the ArtifactPanel.
  */
-describe("runHarnessChat write tap (tool_start → file)", () => {
-  let root: string;
+describe("generation write tap", () => {
+  const WRITE = WORKSPACE_TOOLS.FILESYSTEM.WRITE_FILE;
+  const rel = "[local]/test-resource/fxmanifest.lua";
 
-  beforeAll(() => {
-    root = mkdtempSync(join(tmpdir(), "harness-write-"));
+  it("tracks a supervisor write (tool_start / args)", () => {
+    expect(
+      writtenPathFromEvent({ type: "tool_start", toolName: WRITE, args: { path: rel } }, WRITE),
+    ).toBe(rel);
   });
-  afterAll(() => {
-    rmSync(root, { recursive: true, force: true });
+
+  it("tracks a SPECIALIST write (subagent_tool_start / subToolArgs)", () => {
+    // The path that now carries every generated file. Tapping only tool_start
+    // would drop all of them.
+    expect(
+      writtenPathFromEvent(
+        { type: "subagent_tool_start", subToolName: WRITE, subToolArgs: { path: rel } },
+        WRITE,
+      ),
+    ).toBe(rel);
   });
 
-  it("forwards a write_file tool_start with the path, and writes the file", async () => {
-    const events: HarnessWireEvent[] = [];
-    await runHarnessChat("make manifest", root, {
-      resourceId: "ws_t__srv_t",
-      indexPaths: [],
-      send: (e) => events.push(e),
-    });
-
-    const rel = "[local]/test-resource/fxmanifest.lua";
-    const writeStart = events.find(
-      (e) => e.type === "tool_start" && e.toolName === WORKSPACE_TOOLS.FILESYSTEM.WRITE_FILE,
-    );
-    expect(writeStart).toBeTruthy();
-    expect((writeStart?.args as { path?: string } | undefined)?.path).toBe(rel);
-    // The tool actually executed — the file is on disk for the manifest/undo.
-    expect(existsSync(join(root, rel))).toBe(true);
-  }, 60_000);
+  it("ignores other tools and malformed args", () => {
+    expect(
+      writtenPathFromEvent(
+        { type: "tool_start", toolName: "validate_resource", args: { path: rel } },
+        WRITE,
+      ),
+    ).toBeUndefined();
+    expect(writtenPathFromEvent({ type: "tool_start", toolName: WRITE }, WRITE)).toBeUndefined();
+    expect(
+      writtenPathFromEvent({ type: "tool_start", toolName: WRITE, args: { path: 42 } }, WRITE),
+    ).toBeUndefined();
+    expect(writtenPathFromEvent({ type: "tool_end" }, WRITE)).toBeUndefined();
+  });
 });
 
 /**

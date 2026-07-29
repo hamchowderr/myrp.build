@@ -21,8 +21,10 @@
  *  - storage   = the MastraCompositeStore — Supabase memory + InMemory
  *                workflows; persists threads/messages/state.
  *  - memory    = the per-tenant Mastra Memory (semantic recall + working memory).
- *  - modes     = a single `generate` mode for now (the app's one job); a `plan`
- *                mode (submit_plan HITL) can be added later via transitionsTo.
+ *  - modes     = a single `generate` mode (the app's one job), scoped by
+ *                `availableTools` so the supervisor CANNOT write files — see
+ *                SUPERVISOR_TOOLS. A `plan` mode (submit_plan HITL) can be added
+ *                later via transitionsTo.
  */
 
 import { AgentController, type ToolCategory } from "@mastra/core/agent-controller";
@@ -80,6 +82,73 @@ export function fivemToolCategory(toolName: string): ToolCategory | null {
   return TOOL_CATEGORY[toolName] ?? null;
 }
 
+/**
+ * What the SUPERVISOR may call in `generate` mode — a mode-level allowlist
+ * (`AgentControllerMode.availableTools`), enforced by Mastra at LLM-call time.
+ *
+ * WHY THIS EXISTS. `prompt.ts` tells the supervisor "You do NOT write resource
+ * files yourself" and to delegate all Lua + the manifest to lua-specialist. It
+ * ignored that on the first real generation: it wrote the files itself, spawned
+ * no specialist, and so the validator — whose job is catching exactly the ox
+ * violation that shipped — never ran. Capturing the request payload showed why:
+ * `subagent` WAS offered and the instruction WAS present, but so were
+ * write_file, edit_file and mkdir. Given both a rule and the means to bypass it,
+ * the model took the direct path.
+ *
+ * So the four AUTHORING tools are removed from the supervisor's surface —
+ * write_file, edit_file, mkdir, ast_edit. Delegation stops being the instructed
+ * path and becomes the ONLY path to author a file. The specialists keep their
+ * write access; theirs is scoped per-role by `allowedWorkspaceTools` in
+ * sub-agents.ts, which this list does not touch.
+ *
+ * DELETE and EXECUTE_COMMAND deliberately STAY. Neither is authoring, and the
+ * specialists hold neither (sub-agents.ts grants only READ_TOOLS + WRITE_TOOLS),
+ * so removing them from the supervisor too would leave them reachable by nobody —
+ * silently dropping cleanup, the delete approval gate, and any shell-run check.
+ *
+ * Listing a tool that isn't registered is harmless (nothing matches it), so the
+ * conditionally-registered app tools from agent.ts are all named here rather than
+ * risking a silent omission when one of them IS present.
+ */
+const SUPERVISOR_TOOLS: string[] = [
+  // Delegation + human-in-the-loop. `subagent` is the whole point of the mode.
+  "subagent",
+  "ask_user",
+  "submit_plan",
+  "updateWorkingMemory",
+  // The plan the supervisor is supposed to drive to completion.
+  "task_write",
+  "task_update",
+  "task_complete",
+  "task_check",
+  // Read + search: it must be able to inspect the server it is building into.
+  WORKSPACE_TOOLS.FILESYSTEM.READ_FILE,
+  WORKSPACE_TOOLS.FILESYSTEM.LIST_FILES,
+  WORKSPACE_TOOLS.FILESYSTEM.FILE_STAT,
+  WORKSPACE_TOOLS.FILESYSTEM.GREP,
+  WORKSPACE_TOOLS.SEARCH.SEARCH,
+  WORKSPACE_TOOLS.SEARCH.INDEX,
+  WORKSPACE_TOOLS.SANDBOX.GET_PROCESS_OUTPUT,
+  // NOT authoring, and held by no specialist — see the note above.
+  WORKSPACE_TOOLS.FILESYSTEM.DELETE,
+  WORKSPACE_TOOLS.SANDBOX.EXECUTE_COMMAND,
+  WORKSPACE_TOOLS.SANDBOX.KILL_PROCESS,
+  // ox knowledge.
+  "skill",
+  "skill_search",
+  "skill_read",
+  // The app tools prompt.ts explicitly says the supervisor owns.
+  "validate_resource",
+  "smoke_test_resource",
+  "deploy_resource",
+  "install_resource",
+  "import_schema",
+  "start_server",
+  "stop_server",
+  "restart_server",
+  "server_status",
+];
+
 export interface FiveMHarnessOptions extends FiveMAgentOptions {
   /** Thread/message/state persistence: the composite store. */
   storage: MastraCompositeStore;
@@ -105,7 +174,9 @@ export function createFiveMHarness(
     workspace,
     storage,
     ...(opts.memory ? { memory: opts.memory } : {}),
-    modes: [{ id: "generate", name: "Generate" }],
+    // The allowlist is what makes "you coordinate, the specialists write" true
+    // rather than merely requested — see SUPERVISOR_TOOLS.
+    modes: [{ id: "generate", name: "Generate", availableTools: SUPERVISOR_TOOLS }],
     subagents: createSubAgentDefs(),
     // Permission categories for HITL; the policy layer wires the gating policy + suspend/resume.
     toolCategoryResolver: fivemToolCategory,

@@ -28,6 +28,33 @@ export function resourceNameFromRel(rel: string): string | undefined {
  * The legacy path feeds it from AI-SDK chunks; the Harness path from `tool_start`
  * events — both call {@link trackPath} with a workspace-relative path.
  */
+/**
+ * The relative path a controller event wrote, or undefined if it wrote nothing.
+ *
+ * Extracted from the IPC forwarder so it can be tested directly: a miss here is
+ * silent and expensive — the file lands on disk but never reaches the generation
+ * manifest, so it cannot be undone and never appears in the ArtifactPanel.
+ *
+ * TWO shapes, because writes come from two surfaces. The supervisor's own calls
+ * arrive as `tool_start` with `args`. Specialists — which now author every
+ * generated file, since the supervisor's authoring tools were removed (see
+ * SUPERVISOR_TOOLS in mastra/harness.ts) — arrive as `subagent_tool_start` with
+ * `subToolArgs`. Handling only the first was the whole risk.
+ */
+export function writtenPathFromEvent(
+  event: { type?: string; [k: string]: unknown },
+  writeFileToolName: string,
+): string | undefined {
+  const args =
+    event.type === "tool_start" && event.toolName === writeFileToolName
+      ? event.args
+      : event.type === "subagent_tool_start" && event.subToolName === writeFileToolName
+        ? event.subToolArgs
+        : undefined;
+  const path = (args as { path?: unknown } | undefined)?.path;
+  return typeof path === "string" ? path : undefined;
+}
+
 export interface WriteTracker {
   readonly writtenAbs: Set<string>;
   readonly backupPath: string | undefined;
