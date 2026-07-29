@@ -17,7 +17,12 @@
  */
 
 import { createOpenAI } from "@ai-sdk/openai";
-import { RegexFilterProcessor, TokenLimiter, ToolCallFilter } from "@mastra/core/processors";
+import {
+  PrefillErrorHandler,
+  RegexFilterProcessor,
+  TokenLimiter,
+  ToolCallFilter,
+} from "@mastra/core/processors";
 import type { AnyWorkspace } from "@mastra/core/workspace";
 import { createGateway } from "ai";
 import { DANGEROUS_SHELL_RULES } from "./guardrails";
@@ -233,6 +238,21 @@ export function buildFiveMAgentConfig(workspace: AnyWorkspace, opts: FiveMAgentO
       // MYRP_DISABLE_ROLLING_CACHE=1 drops it (ops escape hatch + A/B control run).
       ...(process.env.MYRP_DISABLE_ROLLING_CACHE === "1" ? [] : [new RollingCacheBreakpoint()]),
     ],
+    // Recovery from provider-level rejections. Not registered by default — a
+    // plain AgentController gets none, and Mastra ships PrefillErrorHandler for
+    // callers to opt into (its own coding-agent preset does exactly this).
+    //
+    // Without it a delegated generation DIES. Verified live: after a subagent
+    // returns, the conversation ends with an assistant message and the provider
+    // refuses — "This model does not support assistant message prefill. The
+    // conversation must end with a user message." The run then produced nothing
+    // at all. The handler catches that rejection, sends a hidden `continue`
+    // system-reminder, and retries once.
+    //
+    // This was invisible for a long time because the error text was being
+    // destroyed before it reached the UI (see errorText in the renderer's harness
+    // reducer) — it rendered as "{}", so a failing run looked like a quiet one.
+    errorProcessors: [new PrefillErrorHandler()],
     // Conversation memory for multi-turn follow-ups; omitted = one-shot.
     ...(opts.memory ? { memory: opts.memory } : {}),
     // maxSteps lives here (not per stream() call) so every caller — runGeneration
