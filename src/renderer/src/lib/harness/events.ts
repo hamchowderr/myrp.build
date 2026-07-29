@@ -76,6 +76,39 @@ export type ActiveSubagent = {
   modelId?: string;
 };
 
+/**
+ * Readable text for whatever an event calls an "error".
+ *
+ * `JSON.stringify` was used here, and on an Error it returns `"{}"` — Error's
+ * message and stack are non-enumerable. So every failed run rendered a literal
+ * empty object in a red box, and the actual reason was destroyed before anyone
+ * could read it. That is not cosmetic: it is why a generation that ERRORED was
+ * repeatedly diagnosed as one that "silently stopped".
+ *
+ * Handles the shapes these events actually carry: a plain string, an Error, the
+ * `{ message }` objects APIs return, and anything else via a stringify that
+ * degrades to String() rather than to "{}".
+ */
+export function errorText(err: unknown): string {
+  if (typeof err === "string") return err;
+  if (err instanceof Error) return err.message || err.name || "Error";
+  if (err && typeof err === "object") {
+    const rec = err as Record<string, unknown>;
+    for (const key of ["message", "error", "reason", "detail"]) {
+      const v = rec[key];
+      if (typeof v === "string" && v) return v;
+      // One level of nesting — providers wrap as { error: { message } }.
+      if (v && typeof v === "object") {
+        const inner = (v as Record<string, unknown>).message;
+        if (typeof inner === "string" && inner) return inner;
+      }
+    }
+    const json = JSON.stringify(err);
+    if (json && json !== "{}") return json;
+  }
+  return String(err);
+}
+
 /** Sandbox command output, streamed while a shell tool runs (`shell_output`). */
 export type HarnessTerminal = {
   output: string;
@@ -478,20 +511,14 @@ export function reduceHarnessEvent(state: HarnessTranscript, event: AnyEvent): H
         // half-typed tool would sit frozen next to the error message.
         activeTools: [],
         terminal: { ...state.terminal, running: false },
-        error: typeof event.error === "string" ? event.error : JSON.stringify(event.error),
+        error: errorText(event.error),
       };
     // A workspace failure (filesystem, sandbox, indexing) breaks the agent's ability
     // to do its job, but it is reported on its OWN channel — falling through to
     // `default` swallowed it, so the run looked healthy while nothing could be
     // written. Surfaced through the same `error` field the UI already renders.
     case "workspace_error":
-      return {
-        ...state,
-        error:
-          typeof event.error === "string"
-            ? `Workspace: ${event.error}`
-            : `Workspace: ${JSON.stringify(event.error)}`,
-      };
+      return { ...state, error: `Workspace: ${errorText(event.error)}` };
     default:
       return state;
   }

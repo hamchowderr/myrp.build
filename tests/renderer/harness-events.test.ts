@@ -356,6 +356,38 @@ describe("reduceHarnessEvent", () => {
     expect(t.error).toBe("rate limited");
   });
 
+  it("keeps the message when the error is an Error, not '{}'", () => {
+    // The bug this guards cost real debugging time: JSON.stringify(new Error(m))
+    // is "{}" because message and stack are non-enumerable, so every failed run
+    // rendered an empty object in a red box and the reason was destroyed. A run
+    // that ERRORED was repeatedly diagnosed as one that silently stopped.
+    const t = reduceHarnessEvent(emptyTranscript(), {
+      type: "error",
+      error: new Error("model refused the tool call"),
+    });
+    expect(t.error).toBe("model refused the tool call");
+    expect(t.error).not.toBe("{}");
+  });
+
+  it("reads the message out of the object shapes providers actually send", () => {
+    const flat = reduceHarnessEvent(emptyTranscript(), {
+      type: "error",
+      error: { message: "rate limited" },
+    });
+    expect(flat.error).toBe("rate limited");
+
+    // Providers commonly wrap: { error: { message } }.
+    const nested = reduceHarnessEvent(emptyTranscript(), {
+      type: "error",
+      error: { error: { message: "context length exceeded" } },
+    });
+    expect(nested.error).toBe("context length exceeded");
+
+    // Anything unrecognised must still say SOMETHING rather than "{}".
+    const odd = reduceHarnessEvent(emptyTranscript(), { type: "error", error: 42 });
+    expect(odd.error).toBe("42");
+  });
+
   it("surfaces workspace_error instead of dropping it", () => {
     // It arrives on its own channel, so before this it fell through to `default`
     // and the run looked healthy while the agent could not write anything.
