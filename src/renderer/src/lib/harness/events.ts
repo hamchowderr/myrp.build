@@ -60,8 +60,18 @@ export type ActiveSubagent = {
   toolCallId: string;
   agentType: string;
   task: string;
-  /** The sub-tool it's currently running, if any (subagent_tool_start). */
+  /**
+   * The sub-tool it's currently running. Set by `subagent_tool_start` and CLEARED
+   * by `subagent_tool_end` — without the latter a specialist that finished its
+   * last tool kept being shown as running it until the whole delegation ended.
+   */
   currentTool?: string;
+  /**
+   * Text the specialist has streamed so far (`subagent_text_delta`). Specialists
+   * do the actual generation and can run for a long time; without this the row
+   * shows nothing but a task label the entire time, which reads as frozen.
+   */
+  text?: string;
 };
 
 /** Token usage from the Harness `usage_update` event (→ the Context element). */
@@ -225,6 +235,26 @@ export function reduceHarnessEvent(state: HarnessTranscript, event: AnyEvent): H
           s.toolCallId === event.toolCallId ? { ...s, currentTool: event.subToolName } : s,
         ),
       };
+    // The sub-tool finished but the specialist is still working. Drop the label so
+    // the row falls back to its task instead of claiming a finished tool is running.
+    case "subagent_tool_end":
+      return {
+        ...state,
+        activeSubagents: state.activeSubagents.map((s) =>
+          s.toolCallId === event.toolCallId ? { ...s, currentTool: undefined } : s,
+        ),
+      };
+    // Live output from a specialist — the only signal that a long delegation is
+    // progressing rather than hung.
+    case "subagent_text_delta":
+      return {
+        ...state,
+        activeSubagents: state.activeSubagents.map((s) =>
+          s.toolCallId === event.toolCallId
+            ? { ...s, text: (s.text ?? "") + String(event.textDelta ?? "") }
+            : s,
+        ),
+      };
     case "subagent_end":
       return {
         ...state,
@@ -276,6 +306,18 @@ export function reduceHarnessEvent(state: HarnessTranscript, event: AnyEvent): H
       return {
         ...state,
         error: typeof event.error === "string" ? event.error : JSON.stringify(event.error),
+      };
+    // A workspace failure (filesystem, sandbox, indexing) breaks the agent's ability
+    // to do its job, but it is reported on its OWN channel — falling through to
+    // `default` swallowed it, so the run looked healthy while nothing could be
+    // written. Surfaced through the same `error` field the UI already renders.
+    case "workspace_error":
+      return {
+        ...state,
+        error:
+          typeof event.error === "string"
+            ? `Workspace: ${event.error}`
+            : `Workspace: ${JSON.stringify(event.error)}`,
       };
     default:
       return state;

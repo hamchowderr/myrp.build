@@ -154,6 +154,65 @@ describe("reduceHarnessEvent", () => {
     expect(t.activeSubagents).toHaveLength(0);
   });
 
+  it("clears currentTool on subagent_tool_end while the specialist keeps working", () => {
+    // The bug this guards: only tool_start was handled, so a specialist that
+    // finished its last tool kept being displayed as running it — the row renders
+    // `agentType · currentTool`, falling back to the task only when it is unset.
+    let t = reduceHarnessEvent(emptyTranscript(), {
+      type: "subagent_start",
+      toolCallId: "sa1",
+      agentType: "lua-specialist",
+      task: "write the client script",
+    });
+    t = reduceHarnessEvent(t, {
+      type: "subagent_tool_start",
+      toolCallId: "sa1",
+      subToolName: "mastra_workspace_read_file",
+    });
+    expect(t.activeSubagents[0].currentTool).toBe("mastra_workspace_read_file");
+
+    t = reduceHarnessEvent(t, {
+      type: "subagent_tool_end",
+      toolCallId: "sa1",
+      subToolName: "mastra_workspace_read_file",
+    });
+    expect(t.activeSubagents[0].currentTool).toBeUndefined();
+    // Still delegating — only the tool label cleared, not the subagent itself.
+    expect(t.activeSubagents).toHaveLength(1);
+  });
+
+  it("accumulates streamed specialist text, scoped to the right subagent", () => {
+    let t = reduceHarnessEvent(emptyTranscript(), {
+      type: "subagent_start",
+      toolCallId: "sa1",
+      agentType: "lua-specialist",
+      task: "write the client script",
+    });
+    t = reduceHarnessEvent(t, {
+      type: "subagent_start",
+      toolCallId: "sa2",
+      agentType: "validator",
+      task: "check the manifest",
+    });
+    t = reduceHarnessEvent(t, { type: "subagent_text_delta", toolCallId: "sa1", textDelta: "loc" });
+    t = reduceHarnessEvent(t, { type: "subagent_text_delta", toolCallId: "sa1", textDelta: "al " });
+
+    expect(t.activeSubagents.find((s) => s.toolCallId === "sa1")?.text).toBe("local ");
+    // A concurrent specialist must not inherit another's output.
+    expect(t.activeSubagents.find((s) => s.toolCallId === "sa2")?.text).toBeUndefined();
+  });
+
+  it("surfaces workspace_error instead of dropping it", () => {
+    // It arrives on its own channel, so before this it fell through to `default`
+    // and the run looked healthy while the agent could not write anything.
+    const t = reduceHarnessEvent(emptyTranscript(), {
+      type: "workspace_error",
+      error: "sandbox failed to start",
+    });
+    expect(t.error).toContain("sandbox failed to start");
+    expect(t.error).toContain("Workspace");
+  });
+
   it("tracks a tool suspension and clears it on the matching tool_end", () => {
     let t = reduceHarnessEvent(emptyTranscript(), {
       type: "tool_suspended",
