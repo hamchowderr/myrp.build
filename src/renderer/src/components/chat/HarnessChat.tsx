@@ -339,6 +339,7 @@ export function HarnessChat({
     messages,
     threadId,
     tasks,
+    activeTools,
     pendingApproval,
     pendingSuspensions,
     activeSubagents,
@@ -497,6 +498,29 @@ export function HarnessChat({
             {/* The turn's file writes as one git-style card, replacing the inline
               Wrote/Edited cards. */}
             {changedFiles.length > 0 && <ChangedFilesCard files={changedFiles} />}
+
+            {/* Tool calls whose arguments are still streaming. Rendered as the same
+              Tool card the finished call uses, so it doesn't jump when it settles.
+              argsText is partial JSON and NOT parseable mid-stream — it is shown as
+              raw text on purpose, which is the point: you watch the path and body
+              being written. Suppressed tools (task_*, ask_user) stay hidden here too. */}
+            {activeTools
+              .filter((t) => !SUPPRESSED_INLINE_TOOLS.has(t.name))
+              .map((t) => (
+                <Tool key={t.toolCallId}>
+                  <ToolHeader
+                    type={`tool-${t.name}`}
+                    state={t.state}
+                    title={toolLabel(`tool-${t.name}`, undefined)}
+                  />
+                  <ToolContent>
+                    <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap break-all p-3 text-[11px] text-muted-foreground">
+                      {t.argsText}
+                      {t.state === "input-streaming" && <span className="animate-pulse">▍</span>}
+                    </pre>
+                  </ToolContent>
+                </Tool>
+              ))}
 
             {/* Live subagent activity: which specialists the supervisor is
               delegating to, and the sub-tool each is running. */}
