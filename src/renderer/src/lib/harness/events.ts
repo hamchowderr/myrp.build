@@ -72,6 +72,24 @@ export type ActiveSubagent = {
    * shows nothing but a task label the entire time, which reads as frozen.
    */
   text?: string;
+  /** Backing model, from `subagent_start` and kept current by `subagent_model_changed`. */
+  modelId?: string;
+};
+
+/** Sandbox command output, streamed while a shell tool runs (`shell_output`). */
+export type HarnessTerminal = {
+  output: string;
+  running: boolean;
+};
+
+/**
+ * Workspace lifecycle. The agent cannot read or write anything until its
+ * workspace is ready, so a failure here explains an otherwise inexplicable run.
+ */
+export type HarnessWorkspace = {
+  status: string;
+  name?: string;
+  error?: string;
 };
 
 /** Token usage from the Harness `usage_update` event (→ the Context element). */
@@ -128,6 +146,12 @@ export type HarnessTranscript = {
   lastGenerationId: string | null;
   /** ox docs that grounded this turn (RAG citations). */
   sources: HarnessSource[];
+  /** Live sandbox command output (`shell_output`). */
+  terminal: HarnessTerminal;
+  /** Workspace lifecycle — null until the controller reports on it. */
+  workspace: HarnessWorkspace | null;
+  /** Latest informational message from the controller (`info`). */
+  info: string | null;
   error: string | null;
   done: boolean;
 };
@@ -145,6 +169,9 @@ export const emptyTranscript = (): HarnessTranscript => ({
   queuedFollowUps: 0,
   lastGenerationId: null,
   sources: [],
+  terminal: { output: "", running: false },
+  workspace: null,
+  info: null,
   error: null,
   done: false,
 });
@@ -204,6 +231,7 @@ export function reduceHarnessEvent(state: HarnessTranscript, event: AnyEvent): H
         // A run that ends mid-stream (abort, error) would otherwise leave a tool
         // frozen at half-typed arguments forever.
         activeTools: [],
+        terminal: { ...state.terminal, running: false },
       };
     // The turn parked on an ask_user/submit_plan suspension: the run is idle
     // awaiting the user's answer. Unlike __done__, the suspension card MUST stay
@@ -223,6 +251,9 @@ export function reduceHarnessEvent(state: HarnessTranscript, event: AnyEvent): H
         // The finished call is rendered from message content; drop the streaming
         // entry so the same tool isn't shown twice.
         activeTools: state.activeTools.filter((t) => t.toolCallId !== event.toolCallId),
+        // A shell tool finishing settles the terminal — keep the output, drop the
+        // "still running" caret.
+        terminal: { ...state.terminal, running: false },
       };
     // The run ended: clear the run-scoped transients (gate + subagents). Do NOT
     // clear pendingSuspensions here — an ask_user/submit_plan suspension parks the
@@ -251,7 +282,12 @@ export function reduceHarnessEvent(state: HarnessTranscript, event: AnyEvent): H
         ...state,
         activeSubagents: [
           ...state.activeSubagents.filter((s) => s.toolCallId !== event.toolCallId),
-          { toolCallId: event.toolCallId, agentType: event.agentType, task: event.task },
+          {
+            toolCallId: event.toolCallId,
+            agentType: event.agentType,
+            task: event.task,
+            ...(typeof event.modelId === "string" ? { modelId: event.modelId } : {}),
+          },
         ],
       };
     case "subagent_tool_start":
@@ -270,6 +306,53 @@ export function reduceHarnessEvent(state: HarnessTranscript, event: AnyEvent): H
           s.toolCallId === event.toolCallId ? { ...s, currentTool: undefined } : s,
         ),
       };
+    // ---- Sandbox, workspace, and controller notices --------------------------
+    // Live stdout/stderr from a shell tool. The validator and luacheck runs are
+    // shell commands, so without this their output only appears once they finish.
+    case "shell_output":
+      return {
+        ...state,
+        terminal: { output: state.terminal.output + String(event.output ?? ""), running: true },
+      };
+    case "workspace_ready":
+      return {
+        ...state,
+        workspace: {
+          status: "ready",
+          ...(typeof event.workspaceName === "string" ? { name: event.workspaceName } : {}),
+        },
+      };
+    case "workspace_status_changed":
+      return {
+        ...state,
+        workspace: {
+          status: String(event.status ?? "unknown"),
+          ...(event.error ? { error: String(event.error) } : {}),
+        },
+      };
+    case "info":
+      return { ...state, info: String(event.message ?? "") };
+    // The suspension was withdrawn rather than answered — drop the card so it does
+    // not sit there waiting for input nothing is listening for.
+    case "tool_suspension_cancelled":
+      return {
+        ...state,
+        pendingSuspensions: state.pendingSuspensions.filter(
+          (s) => s.toolCallId !== event.toolCallId,
+        ),
+      };
+    // A specialist's backing model changed mid-run; reflect it on that type's rows.
+    case "subagent_model_changed":
+      return typeof event.agentType === "string"
+        ? {
+            ...state,
+            activeSubagents: state.activeSubagents.map((s) =>
+              s.agentType === event.agentType
+                ? { ...s, modelId: String(event.modelId ?? s.modelId) }
+                : s,
+            ),
+          }
+        : state;
     // ---- Streaming tool arguments -------------------------------------------
     // The model streams a tool's arguments as JSON text chunks before the call is
     // complete. Folding them lets the UI show the path being chosen and the body
@@ -303,6 +386,33 @@ export function reduceHarnessEvent(state: HarnessTranscript, event: AnyEvent): H
           t.toolCallId === event.toolCallId ? { ...t, state: "input-available" } : t,
         ),
       };
+    // The call is fully formed and about to run. Usually this just settles an entry
+    // the input stream already created — but a tool whose arguments never streamed
+    // (none to send, or delivered complete) has no entry at all, and without this
+    // it would stay invisible until it finished.
+    case "tool_start": {
+      const id = String(event.toolCallId ?? "");
+      const existing = state.activeTools.find((t) => t.toolCallId === id);
+      const argsText = event.args !== undefined ? JSON.stringify(event.args, null, 1) : "";
+      return {
+        ...state,
+        activeTools: existing
+          ? state.activeTools.map((t) =>
+              t.toolCallId === id
+                ? { ...t, state: "input-available", argsText: argsText || t.argsText }
+                : t,
+            )
+          : [
+              ...state.activeTools,
+              {
+                toolCallId: id,
+                name: String(event.toolName ?? ""),
+                argsText,
+                state: "input-available",
+              },
+            ],
+      };
+    }
     // Live output from a specialist — the only signal that a long delegation is
     // progressing rather than hung.
     case "subagent_text_delta":
@@ -364,6 +474,10 @@ export function reduceHarnessEvent(state: HarnessTranscript, event: AnyEvent): H
     case "error":
       return {
         ...state,
+        // Same reasoning as __done__: the failed call never sends tool_end, so a
+        // half-typed tool would sit frozen next to the error message.
+        activeTools: [],
+        terminal: { ...state.terminal, running: false },
         error: typeof event.error === "string" ? event.error : JSON.stringify(event.error),
       };
     // A workspace failure (filesystem, sandbox, indexing) breaks the agent's ability
