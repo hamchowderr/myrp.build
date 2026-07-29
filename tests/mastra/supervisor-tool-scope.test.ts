@@ -18,12 +18,17 @@ import { setupAimock } from "../setup/aimock";
  * payload rather than our config object — the config is what we intended, the
  * payload is what the model sees, and only the second one decides behaviour.
  *
- * Guards the fix for the first real generation, where the supervisor wrote the
- * files itself instead of delegating: `subagent` was offered and the prompt said
- * to use it, but write_file was offered too, so it took the direct path. With no
- * write tools, delegation is the only way for anything to reach disk.
+ * AIMock keeps no request journal, so a logging proxy sits in front of it. That
+ * technique is the reason this file exists: it is how the delegation
+ * investigation established that `subagent` was offered all along and the
+ * problem lay elsewhere.
  *
- * AIMock keeps no request journal, so a logging proxy sits in front of it.
+ * Scope note: an earlier version also asserted the supervisor had NO write tools.
+ * That change is reverted — see the note on SUPERVISOR_TOOLS — because removing
+ * them stopped direct writes without producing delegation, so the agent wrote
+ * nothing at all. What is asserted here is the surface delegation DEPENDS on,
+ * which is a real regression risk regardless of how the delegation problem is
+ * eventually solved.
  */
 const getAimock = setupAimock();
 
@@ -93,37 +98,13 @@ describe("supervisor tool scope", () => {
     rmSync(root, { recursive: true, force: true });
   });
 
-  it("offers the supervisor NO way to write files itself", async () => {
-    await sendHarnessTurn(runtime, { text: "make manifest", send: () => {} });
-    const names = offeredTools();
-    expect(names.length).toBeGreaterThan(0);
-
-    for (const write of [
-      WORKSPACE_TOOLS.FILESYSTEM.WRITE_FILE,
-      WORKSPACE_TOOLS.FILESYSTEM.EDIT_FILE,
-      WORKSPACE_TOOLS.FILESYSTEM.MKDIR,
-      WORKSPACE_TOOLS.FILESYSTEM.AST_EDIT,
-    ]) {
-      expect(names).not.toContain(write);
-    }
-  }, 120_000);
-
-  it("keeps delete and shell, which no specialist holds", async () => {
-    // sub-agents.ts grants specialists only READ_TOOLS + WRITE_TOOLS, so pulling
-    // these from the supervisor as well would leave them reachable by nobody and
-    // silently kill cleanup, the delete approval gate, and shell-run checks.
-    await sendHarnessTurn(runtime, { text: "make manifest", send: () => {} });
-    const names = offeredTools();
-    expect(names).toContain(WORKSPACE_TOOLS.FILESYSTEM.DELETE);
-    expect(names).toContain(WORKSPACE_TOOLS.SANDBOX.EXECUTE_COMMAND);
-  }, 120_000);
-
   it("keeps delegation, planning and read access", async () => {
     await sendHarnessTurn(runtime, { text: "make manifest", send: () => {} });
     const names = offeredTools();
 
-    // Without `subagent` nothing can be built at all — the supervisor can no
-    // longer write, so this tool is now load-bearing rather than merely advised.
+    // Losing `subagent` would make delegation impossible rather than merely
+    // unattractive, and the failure would look identical to the one being
+    // investigated — so assert it is present regardless of that outcome.
     expect(names).toContain("subagent");
     expect(names).toContain("task_write");
     expect(names).toContain("task_complete");

@@ -83,6 +83,21 @@ export function fivemToolCategory(toolName: string): ToolCategory | null {
 }
 
 /**
+ * NOT CURRENTLY APPLIED — kept because the analysis behind it is sound and the
+ * next attempt should start here rather than rediscover it.
+ *
+ * Wiring this as `generate`'s `availableTools` DID stop the supervisor writing
+ * files directly. It did NOT produce delegation: across two clean runs the agent
+ * acknowledged the request and then ended the turn having written nothing at all,
+ * with no error in the log. That is worse than the behaviour it replaced — wrong
+ * code beats no code — so it is reverted until the reason is understood.
+ *
+ * What is established: removing the means does not by itself create the habit.
+ * Something else has to make `subagent` the obvious next action once writing is
+ * impossible, and that is not yet known.
+ *
+ * Original rationale below.
+ *
  * What the SUPERVISOR may call in `generate` mode — a mode-level allowlist
  * (`AgentControllerMode.availableTools`), enforced by Mastra at LLM-call time.
  *
@@ -110,7 +125,7 @@ export function fivemToolCategory(toolName: string): ToolCategory | null {
  * conditionally-registered app tools from agent.ts are all named here rather than
  * risking a silent omission when one of them IS present.
  */
-const SUPERVISOR_TOOLS: string[] = [
+export const SUPERVISOR_TOOLS: string[] = [
   // Delegation + human-in-the-loop. `subagent` is the whole point of the mode.
   "subagent",
   "ask_user",
@@ -176,7 +191,7 @@ export function createFiveMHarness(
     ...(opts.memory ? { memory: opts.memory } : {}),
     // The allowlist is what makes "you coordinate, the specialists write" true
     // rather than merely requested — see SUPERVISOR_TOOLS.
-    modes: [{ id: "generate", name: "Generate", availableTools: SUPERVISOR_TOOLS }],
+    modes: [{ id: "generate", name: "Generate" }],
     subagents: createSubAgentDefs(),
     // Permission categories for HITL; the policy layer wires the gating policy + suspend/resume.
     toolCategoryResolver: fivemToolCategory,
