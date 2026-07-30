@@ -145,21 +145,24 @@ describe("agentic loop context + step budget", () => {
     rmSync(root, { recursive: true, force: true });
   });
 
-  // it.fails: this is a REPRODUCTION of an unfixed bug (myrp-build-mg6), kept
-  // executing rather than skipped so it keeps proving the failure is real. Vitest
-  // inverts the result, so CI stays green while broken AND turns RED the moment
-  // the loop starts carrying tool results — at which point delete `.fails` and
-  // this becomes the permanent regression guard.
+  // REGRESSION GUARD for myrp-build-mg6, which was an UPSTREAM defect:
+  // mastra-ai/mastra#19814, fixed by porting PR #19940 onto the published bundle
+  // (patches/@mastra+core+*.patch). Was `it.fails` while the bug was live.
   //
-  // Currently observed: requests alternate `system,user` / `system,user,assistant+tc,tool`,
-  // so every second model call has the history reset and the agent re-issues its
-  // FIRST write. Ruled out by A/B, all with the alternation unchanged:
+  // The failure this locks down: requests alternated `system,user` /
+  // `system,user,assistant+tc,tool`, so every second model call had its history
+  // reset and the agent re-issued its FIRST write — 49 identical writes and 1.29M
+  // tokens on a one-command resource. Root cause was resume hydration, not our
+  // pipeline: `#validateSuspendedToolCallTarget` polled for the snapshot holding
+  // the target suspension, then threw it away, so `resumeStream` rehydrated
+  // MessageList from the STALE snapshot and lost the second tool result.
+  //
+  // Ruled out by A/B before finding it, all with the alternation unchanged:
   // RollingCacheBreakpoint (MYRP_DISABLE_ROLLING_CACHE=1), ToolCallFilter
   // (MYRP_DISABLE_TOOL_CALL_FILTER=1), TokenLimiter (150k, never trims here),
-  // suspend/resume (no suspension events in the run), and memory (none configured).
-  // All four requests are the same agent — same model, same 22 tools, same user
-  // message — so they are real loop steps, not a title/observer side-call.
-  it.fails("carries each step's tool result into the next request", async () => {
+  // and memory (none configured). If this test fails again after a
+  // @mastra/core bump, check the patch still applied before suspecting our code.
+  it("carries each step's tool result into the next request", async () => {
     const events: Array<Record<string, unknown>> = [];
     await sendHarnessTurn(runtime, {
       text: "build the multistep resource",

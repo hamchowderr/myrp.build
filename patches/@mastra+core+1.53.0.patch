@@ -1,0 +1,146 @@
+diff --git a/node_modules/@mastra/core/dist/chunk-3S5BFAEP.js b/node_modules/@mastra/core/dist/chunk-3S5BFAEP.js
+index e8a966d..29c7e51 100644
+--- a/node_modules/@mastra/core/dist/chunk-3S5BFAEP.js
++++ b/node_modules/@mastra/core/dist/chunk-3S5BFAEP.js
+@@ -48718,9 +48718,10 @@ ${effectiveInstructions}`;
+     runId,
+     method
+   }) {
+-    if (toolCallId === void 0) return;
++    if (toolCallId === void 0) return snapshot;
+     const isTargetSuspended = (currentSnapshot) => this.#getSuspendedToolCalls(currentSnapshot).some((toolCall) => toolCall.toolCallId === toolCallId);
+-    let isSuspended = isTargetSuspended(snapshot);
++    let resumeSnapshot = snapshot;
++    let isSuspended = isTargetSuspended(resumeSnapshot);
+     if (!isSuspended) {
+       const effectiveMastra = this.#mastra ?? await this.#getOrCreateEphemeralMastra();
+       const workflowsStore = await effectiveMastra?.getStorage()?.getStore("workflows");
+@@ -48728,7 +48729,10 @@ ${effectiveInstructions}`;
+       while (!isSuspended && workflowsStore && Date.now() < deadline) {
+         await new Promise((resolve5) => setTimeout(resolve5, 25));
+         const latestSnapshot = await workflowsStore.loadWorkflowSnapshot({ workflowName: "agentic-loop", runId });
+-        isSuspended = latestSnapshot ? isTargetSuspended(latestSnapshot) : false;
++        if (latestSnapshot && isTargetSuspended(latestSnapshot)) {
++          resumeSnapshot = latestSnapshot;
++          isSuspended = true;
++        }
+       }
+     }
+     if (!isSuspended) {
+@@ -48745,6 +48749,7 @@ ${effectiveInstructions}`;
+         }
+       });
+     }
++    return resumeSnapshot;
+   }
+   /**
+    * Suspend payloads persisted before they carried `toolCallId` only hold the
+@@ -50006,7 +50011,7 @@ ${effectiveInstructions}`;
+       snapshotMemoryInfo,
+       actor
+     });
+-    await this.#validateSuspendedToolCallTarget({
++    const resumeSnapshot = await this.#validateSuspendedToolCallTarget({
+       snapshot: existingSnapshot,
+       toolCallId: streamOptions?.toolCallId,
+       runId,
+@@ -50051,7 +50056,7 @@ ${effectiveInstructions}`;
+       messages: [],
+       resumeContext: {
+         resumeData,
+-        snapshot: existingSnapshot
++        snapshot: resumeSnapshot
+       },
+       methodType: "stream",
+       // Use agent's maxProcessorRetries as default, allow options to override
+@@ -50109,7 +50114,7 @@ ${effectiveInstructions}`;
+       snapshotMemoryInfo: this.#getSnapshotMemoryInfo(existingSnapshot),
+       actor
+     });
+-    await this.#validateSuspendedToolCallTarget({
++    const resumeSnapshot = await this.#validateSuspendedToolCallTarget({
+       snapshot: existingSnapshot,
+       toolCallId: options?.toolCallId,
+       runId,
+@@ -50147,7 +50152,7 @@ ${effectiveInstructions}`;
+       messages: [],
+       resumeContext: {
+         resumeData,
+-        snapshot: existingSnapshot
++        snapshot: resumeSnapshot
+       },
+       methodType: "generate",
+       // Use agent's maxProcessorRetries as default, allow options to override
+diff --git a/node_modules/@mastra/core/dist/chunk-ODHD3TLJ.cjs b/node_modules/@mastra/core/dist/chunk-ODHD3TLJ.cjs
+index dad0cd8..af81837 100644
+--- a/node_modules/@mastra/core/dist/chunk-ODHD3TLJ.cjs
++++ b/node_modules/@mastra/core/dist/chunk-ODHD3TLJ.cjs
+@@ -48749,9 +48749,10 @@ ${effectiveInstructions}`;
+     runId,
+     method
+   }) {
+-    if (toolCallId === void 0) return;
++    if (toolCallId === void 0) return snapshot;
+     const isTargetSuspended = (currentSnapshot) => this.#getSuspendedToolCalls(currentSnapshot).some((toolCall) => toolCall.toolCallId === toolCallId);
+-    let isSuspended = isTargetSuspended(snapshot);
++    let resumeSnapshot = snapshot;
++    let isSuspended = isTargetSuspended(resumeSnapshot);
+     if (!isSuspended) {
+       const effectiveMastra = this.#mastra ?? await this.#getOrCreateEphemeralMastra();
+       const workflowsStore = await effectiveMastra?.getStorage()?.getStore("workflows");
+@@ -48759,7 +48760,10 @@ ${effectiveInstructions}`;
+       while (!isSuspended && workflowsStore && Date.now() < deadline) {
+         await new Promise((resolve5) => setTimeout(resolve5, 25));
+         const latestSnapshot = await workflowsStore.loadWorkflowSnapshot({ workflowName: "agentic-loop", runId });
+-        isSuspended = latestSnapshot ? isTargetSuspended(latestSnapshot) : false;
++        if (latestSnapshot && isTargetSuspended(latestSnapshot)) {
++          resumeSnapshot = latestSnapshot;
++          isSuspended = true;
++        }
+       }
+     }
+     if (!isSuspended) {
+@@ -48776,6 +48780,7 @@ ${effectiveInstructions}`;
+         }
+       });
+     }
++    return resumeSnapshot;
+   }
+   /**
+    * Suspend payloads persisted before they carried `toolCallId` only hold the
+@@ -50037,7 +50042,7 @@ ${effectiveInstructions}`;
+       snapshotMemoryInfo,
+       actor
+     });
+-    await this.#validateSuspendedToolCallTarget({
++    const resumeSnapshot = await this.#validateSuspendedToolCallTarget({
+       snapshot: existingSnapshot,
+       toolCallId: streamOptions?.toolCallId,
+       runId,
+@@ -50082,7 +50087,7 @@ ${effectiveInstructions}`;
+       messages: [],
+       resumeContext: {
+         resumeData,
+-        snapshot: existingSnapshot
++        snapshot: resumeSnapshot
+       },
+       methodType: "stream",
+       // Use agent's maxProcessorRetries as default, allow options to override
+@@ -50140,7 +50145,7 @@ ${effectiveInstructions}`;
+       snapshotMemoryInfo: this.#getSnapshotMemoryInfo(existingSnapshot),
+       actor
+     });
+-    await this.#validateSuspendedToolCallTarget({
++    const resumeSnapshot = await this.#validateSuspendedToolCallTarget({
+       snapshot: existingSnapshot,
+       toolCallId: options?.toolCallId,
+       runId,
+@@ -50178,7 +50183,7 @@ ${effectiveInstructions}`;
+       messages: [],
+       resumeContext: {
+         resumeData,
+-        snapshot: existingSnapshot
++        snapshot: resumeSnapshot
+       },
+       methodType: "generate",
+       // Use agent's maxProcessorRetries as default, allow options to override
