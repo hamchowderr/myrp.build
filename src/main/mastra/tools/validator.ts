@@ -276,8 +276,26 @@ export async function validateResource(
   const issues: ValidationIssue[] = [];
   const dir = resolve(resourcesRoot, LOCAL_DIR, resourceName);
 
+  // MISPLACED RESOURCE (myrp-build-8r3). The workspace root is `resources/`, not
+  // `resources/[local]/`, so writing `<name>/server/main.lua` is a LEGAL path that
+  // lands beside the managed folder. Measured live: specialists wrote a complete
+  // resource to resources/rentalhub/ while only the NUI files reached
+  // resources/[local]/rentalhub/. "Resource folder not found" is useless there —
+  // the files exist, just in the wrong place — so say exactly what happened and
+  // what to do, because the agent CAN act on this (it re-validates after repair).
+  const strayDir = resolve(resourcesRoot, resourceName);
+  const strayExists = strayDir !== dir && existsSync(strayDir);
+  if (strayExists) {
+    issues.push({
+      severity: "error",
+      message: `Resource files were written to ${strayDir}, OUTSIDE the managed [local] folder. Every resource file must live under ${LOCAL_DIR}/${resourceName}/ — move them there (e.g. ${LOCAL_DIR}/${resourceName}/fxmanifest.lua) and delete the stray folder. Paths passed to write_file must start with "${LOCAL_DIR}/".`,
+    });
+  }
+
   if (!existsSync(dir)) {
-    return [{ severity: "error", message: `Resource folder not found: ${dir}` }];
+    // Keep the stray-folder error: without it this reads as "nothing was built".
+    issues.push({ severity: "error", message: `Resource folder not found: ${dir}` });
+    return issues;
   }
 
   // __resource.lua is never allowed.

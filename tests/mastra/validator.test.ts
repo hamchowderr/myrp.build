@@ -173,6 +173,36 @@ describe("validateResource", () => {
     expect(issues.filter((i) => i.severity === "error")).toHaveLength(0);
   });
 
+  // ---------------------------------------------------------------------
+  // Misplaced resource (myrp-build-8r3). Measured live: specialists wrote a
+  // COMPLETE resource to resources/<name>/ (a legal path — the workspace root is
+  // resources/, not resources/[local]/) while only the NUI files reached
+  // resources/[local]/<name>/. The old "Resource folder not found" message was
+  // actively misleading: the files existed, just beside the managed folder.
+  // ---------------------------------------------------------------------
+
+  it("flags a resource written outside [local] (8r3)", async () => {
+    // Written directly under the resources root, NOT under [local]/.
+    const abs = join(root, "strayres", "fxmanifest.lua");
+    mkdirSync(join(abs, ".."), { recursive: true });
+    writeFileSync(abs, `fx_version 'cerulean'\ngame 'gta5'\ndependencies { 'ox_lib' }\n`, "utf-8");
+
+    const issues = await validateResource(root, "strayres");
+    const errs = issues.filter((i) => i.severity === "error").map((i) => i.message);
+    expect(errs.some((m) => /OUTSIDE the managed \[local\] folder/.test(m))).toBe(true);
+    // It must still say the managed folder is missing — both facts matter.
+    expect(errs.some((m) => /Resource folder not found/.test(m))).toBe(true);
+  });
+
+  it("does NOT flag a correctly placed resource as misplaced (zero false-positive, 8r3)", async () => {
+    writeResource("wellplaced", {
+      "fxmanifest.lua": `fx_version 'cerulean'\ngame 'gta5'\nserver_scripts { 'server/main.lua' }\ndependencies { 'ox_lib' }\n`,
+      "server/main.lua": `lib.addCommand('ok', {}, function() end)\n`,
+    });
+    const issues = await validateResource(root, "wellplaced");
+    expect(issues.filter((i) => i.severity === "error")).toHaveLength(0);
+  });
+
   it("does NOT flag ox_lib:notify used WITHOUT any lib.* call (zero false-positive, lar)", async () => {
     // Caught by a live run: the agent repaired a resource to the non-deprecated
     // server form, which uses the ox_lib NET EVENT and no lib.* at all. That is
