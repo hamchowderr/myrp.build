@@ -32,6 +32,7 @@ import { join, relative, resolve } from "node:path";
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import log from "../log";
+import { hasRuntimeEntrypoint, luaRuleIssues } from "./lua-rules";
 
 const LOCAL_DIR = "[local]";
 
@@ -349,6 +350,7 @@ export async function validateResource(
   const onDisk = await listFilesRecursive(dir);
   const usesOxLib = manifest.includes("@ox_lib/init.lua") || /['"]ox_lib['"]/.test(manifest);
   let referencesLib = false;
+  let hasEntrypoint = false;
   for (const abs of onDisk) {
     const rel = relative(dir, abs).replace(/\\/g, "/");
     if (rel === "fxmanifest.lua") continue;
@@ -369,34 +371,7 @@ export async function validateResource(
 
     if (rel.endsWith(".lua")) {
       const content = await readFile(abs, "utf-8");
-      if (/GetPlayerPed\s*\(\s*-1\s*\)/.test(content)) {
-        issues.push({
-          severity: "error",
-          message: "Use PlayerPedId() instead of GetPlayerPed(-1)",
-          file: rel,
-        });
-      }
-      if (/MySQL\.Async|mysql-async|exports\[['"]mysql-async['"]\]/.test(content)) {
-        issues.push({
-          severity: "error",
-          message: "Use oxmysql, not mysql-async",
-          file: rel,
-        });
-      }
-      // Non-ox schema leak — ox_core's accounts table has no `bank`/`identifier`
-      // columns. Scoped to the `accounts` table to keep false positives at zero.
-      if (
-        /SELECT[\s\S]{0,60}\bbank\b[\s\S]{0,60}FROM\s+`?accounts`?/i.test(content) ||
-        /FROM\s+`?accounts`?[\s\S]{0,80}\bidentifier\b/i.test(content) ||
-        /`?accounts`?\.`?bank`?\b/i.test(content)
-      ) {
-        issues.push({
-          severity: "error",
-          message:
-            "Non-ox accounts schema detected (accounts.bank / accounts.identifier). This is ox_overextended: ox_core's accounts table is (owner=charId, balance) — read with \"SELECT balance FROM accounts WHERE owner = ? AND isDefault = 1\", or use exports.ox_core:GetPlayer(src):getAccount('bank').balance.",
-          file: rel,
-        });
-      }
+      issues.push(...luaRuleIssues(rel, content));
       if (usesBacktickString(content)) {
         issues.push({
           severity: "error",
@@ -405,7 +380,14 @@ export async function validateResource(
           file: rel,
         });
       }
-      if (/\blib\./.test(content)) referencesLib = true;
+      // "Uses ox" is not only `lib.*`: triggering an ox_lib net event
+      // (TriggerClientEvent('ox_lib:notify', …)) is the NON-deprecated server-side
+      // form, and needs the ox_lib dependency because ox_lib registers the handler.
+      // Found live — the declared-but-unused rule below flagged a resource that had
+      // correctly repaired itself to ox_lib:notify, which is a false positive by
+      // that rule's own intent.
+      if (/\blib\./.test(content) || /['"]ox_lib:[A-Za-z]/.test(content)) referencesLib = true;
+      if (hasRuntimeEntrypoint(content)) hasEntrypoint = true;
     }
   }
 
@@ -418,6 +400,25 @@ export async function validateResource(
       message: referencesLib
         ? "Code uses ox_lib (lib.*) but fxmanifest doesn't load it — add shared_script '@ox_lib/init.lua' or dependency 'ox_lib'"
         : "fxmanifest must declare the ox_lib dependency (dependency 'ox_lib' or shared_script '@ox_lib/init.lua') — required for every ox resource, including config-only",
+      file: "fxmanifest.lua",
+    });
+  }
+
+  // The INVERSE of the check above, and the one myrp-build-lar slipped through:
+  // the manifest declares ox_lib and the code never calls it. GROUND_RULES:18 —
+  // "Declaring the ox_lib dependency is NOT the same as using ox — a resource that
+  // depends on ox_lib and then calls vanilla FiveM APIs is a bug." Measured live:
+  // the `pingtest` resource declared dependencies { 'ox_lib' } and notified with
+  // chat:addMessage, and this validator passed it.
+  //
+  // Gated on hasEntrypoint so a CONFIG-ONLY resource never trips it: those are
+  // REQUIRED to declare ox_lib (see the message above) while legitimately having no
+  // lib.* call. That guard is what keeps this rule zero-false-positive.
+  if (usesOxLib && !referencesLib && hasEntrypoint) {
+    issues.push({
+      severity: "error",
+      message:
+        "fxmanifest declares the ox_lib dependency but no Lua calls lib.* — use ox at the CALL SITE, not just in the manifest (e.g. lib.notify / lib.addCommand / lib.callback), or drop the unused dependency",
       file: "fxmanifest.lua",
     });
   }
@@ -442,7 +443,7 @@ export function createValidatorTool(resourcesRoot: string) {
   return createTool({
     id: "validate_resource",
     description:
-      "Statically validate a generated ox_overextended resource: checks fxmanifest correctness + ox_lib dependency, that every declared file exists on disk, orphan files, forbidden patterns (GetPlayerPed(-1), non-ox DB drivers, __resource.lua, backtick/template-literal strings, non-ox schema like accounts.bank/identifier), and Lua syntax errors (via luacheck when available). Call this after writing all files; if it returns errors, fix them and call again (max 3 times).",
+      "Statically validate a generated ox_overextended resource: checks fxmanifest correctness + ox_lib dependency, that every declared file exists on disk, orphan files, forbidden patterns (GetPlayerPed(-1), non-ox DB drivers, __resource.lua, backtick/template-literal strings, non-ox schema like accounts.bank/identifier, vanilla notifications like chat:addMessage or SetNotificationTextEntry instead of lib.notify), that ox_lib is actually USED at the call site and not merely declared in the manifest, and Lua syntax errors (via luacheck when available). Call this after writing all files; if it returns errors, fix them and call again (max 3 times).",
     inputSchema: z.object({
       resourceName: z
         .string()

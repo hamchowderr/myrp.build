@@ -118,6 +118,86 @@ describe("validateResource", () => {
     const issues = await validateResource(root, "configonly");
     expect(issues.some((i) => i.severity === "error" && /ox_lib/.test(i.message))).toBe(true);
   });
+
+  // ---------------------------------------------------------------------
+  // ox-correctness (myrp-build-lar). These reproduce the FIRST live generation
+  // on the fixed loop: it declared dependencies { 'ox_lib' } and then notified
+  // with chat:addMessage, and this validator passed it. GROUND_RULES already
+  // forbade both; the gap was enforcement, not guidance.
+  // ---------------------------------------------------------------------
+
+  it("flags chat:addMessage instead of ox notifications (lar)", async () => {
+    writeResource("vanillanotify", {
+      "fxmanifest.lua": `fx_version 'cerulean'\ngame 'gta5'\nserver_scripts { 'server/main.lua' }\ndependencies { 'ox_lib' }\n`,
+      "server/main.lua": `RegisterCommand('pingtest', function(source)\n    TriggerClientEvent('chat:addMessage', source, { args = { 'Server', 'pong' } })\nend, false)\n`,
+    });
+    const issues = await validateResource(root, "vanillanotify");
+    const errs = issues.filter((i) => i.severity === "error").map((i) => i.message);
+    expect(errs.some((m) => m.includes("chat:addMessage") && m.includes("lib.notify"))).toBe(true);
+  });
+
+  it("flags the native notification chain (lar)", async () => {
+    writeResource("nativenotify", {
+      "fxmanifest.lua": `fx_version 'cerulean'\ngame 'gta5'\nclient_scripts { 'client/main.lua' }\ndependencies { 'ox_lib' }\n`,
+      "client/main.lua": `RegisterCommand('x', function()\n    SetNotificationTextEntry('STRING')\n    DrawNotification(false, true)\nend, false)\n`,
+    });
+    const issues = await validateResource(root, "nativenotify");
+    expect(
+      issues.some((i) => i.severity === "error" && /SetNotificationTextEntry/.test(i.message)),
+    ).toBe(true);
+  });
+
+  it("flags a manifest that declares ox_lib while no code calls lib.* (lar)", async () => {
+    writeResource("declaredunused", {
+      "fxmanifest.lua": `fx_version 'cerulean'\ngame 'gta5'\nserver_scripts { 'server/main.lua' }\ndependencies { 'ox_lib' }\n`,
+      // Deliberately free of any OTHER forbidden pattern, so only the
+      // declared-but-unused rule can produce this error.
+      "server/main.lua": `RegisterCommand('noop', function(source)\n    print('hello')\nend, false)\n`,
+    });
+    const issues = await validateResource(root, "declaredunused");
+    expect(
+      issues.some(
+        (i) => i.severity === "error" && /never calls lib\.\*|call site/i.test(i.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("does NOT flag the correct ox server notify form (zero false-positive, lar)", async () => {
+    // The correct server-side form IS a TriggerClientEvent, so a rule keyed on
+    // the trigger rather than the event name would reject correct ox code.
+    writeResource("oxnotify", {
+      "fxmanifest.lua": `fx_version 'cerulean'\ngame 'gta5'\nserver_scripts { 'server/main.lua' }\ndependencies { 'ox_lib' }\n`,
+      "server/main.lua": `lib.addCommand('ping', {}, function(source)\n    TriggerClientEvent('ox_lib:notify', source, { description = 'pong', type = 'success' })\nend)\n`,
+    });
+    const issues = await validateResource(root, "oxnotify");
+    expect(issues.filter((i) => i.severity === "error")).toHaveLength(0);
+  });
+
+  it("does NOT flag ox_lib:notify used WITHOUT any lib.* call (zero false-positive, lar)", async () => {
+    // Caught by a live run: the agent repaired a resource to the non-deprecated
+    // server form, which uses the ox_lib NET EVENT and no lib.* at all. That is
+    // correct ox usage and needs the ox_lib dependency (ox_lib registers the
+    // handler), so the declared-but-unused rule must not fire.
+    // Deliberately contains NO `lib.` — the earlier oxnotify fixture used
+    // lib.addCommand, so it passed this rule for the wrong reason.
+    writeResource("neteventonly", {
+      "fxmanifest.lua": `fx_version 'cerulean'\ngame 'gta5'\nserver_scripts { 'server/main.lua' }\ndependencies { 'ox_lib' }\n`,
+      "server/main.lua": `RegisterCommand('ping', function(source)\n    TriggerClientEvent('ox_lib:notify', source, { description = 'pong', type = 'success' })\nend, false)\n`,
+    });
+    const issues = await validateResource(root, "neteventonly");
+    expect(issues.filter((i) => i.severity === "error")).toHaveLength(0);
+  });
+
+  it("does NOT flag a config-only resource that declares ox_lib (zero false-positive, lar)", async () => {
+    // Config-only resources are REQUIRED to declare ox_lib and legitimately have
+    // no lib.* call — the declared-but-unused rule must not fire on them.
+    writeResource("configonlyok", {
+      "fxmanifest.lua": `fx_version 'cerulean'\ngame 'gta5'\nshared_scripts { '@ox_lib/init.lua', 'config.lua' }\ndependencies { 'ox_lib' }\n`,
+      "config.lua": "Config = {}\nConfig.Price = 100\n",
+    });
+    const issues = await validateResource(root, "configonlyok");
+    expect(issues.filter((i) => i.severity === "error")).toHaveLength(0);
+  });
 });
 
 describe("usesBacktickString", () => {
