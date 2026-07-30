@@ -22,8 +22,12 @@
  * The marker is namespaced under `anthropic`, so non-Anthropic providers ignore it.
  * It never throws: on any unexpected message shape it leaves the messages untouched
  * so a caching tweak can never break a generation.
+ *
+ * MUTATES IN PLACE AND RETURNS VOID. That is load-bearing, not stylistic — see the
+ * long note in processInputStep. Returning the message array from a per-step
+ * processor makes Mastra rebuild the whole MessageList and was the mechanism behind
+ * myrp-build-mg6 (context frozen, the same file written 49 times).
  */
-import type { MastraDBMessage } from "@mastra/core/agent/message-list";
 import type { ProcessInputStepArgs, Processor } from "@mastra/core/processors";
 
 const EPHEMERAL = { type: "ephemeral" as const };
@@ -32,7 +36,7 @@ export class RollingCacheBreakpoint implements Processor<"rolling-cache-breakpoi
   readonly id = "rolling-cache-breakpoint" as const;
   readonly name = "Rolling Cache Breakpoint";
 
-  async processInputStep(args: ProcessInputStepArgs): Promise<MastraDBMessage[] | void> {
+  async processInputStep(args: ProcessInputStepArgs): Promise<void> {
     const messages = args.messages;
     if (!Array.isArray(messages) || messages.length === 0) return;
 
@@ -50,6 +54,25 @@ export class RollingCacheBreakpoint implements Processor<"rolling-cache-breakpoi
         anthropic: { ...(existing.anthropic ?? {}), cacheControl: EPHEMERAL },
       },
     };
-    return messages;
+    // RETURN NOTHING — deliberately. `args.messages` IS the MessageList's own
+    // internal array (runProcessInputStep passes `messageList.get.all.db()`
+    // straight through, and that getter returns `this.messages`), so the mutation
+    // above has ALREADY landed. Returning the array is not a no-op: Mastra
+    // normalizes an array result to `{ messages }` and hands it to
+    // `applyMessagesToMessageList`, which treats it as the AUTHORITATIVE complete
+    // list — it deletes any id missing from it, then removes and re-adds EVERY
+    // message with `{ merge: false }`, re-tagging each one via `check.getSource()`.
+    // Two ways that bites (myrp-build-mg6):
+    //  1. Re-tagged messages whose source can no longer be resolved fall back to
+    //     `defaultSource: "input"` — assistant/tool rows come back as USER rows.
+    //     `filterIncompleteToolCalls` (MessageList default TRUE) then drops, at
+    //     every prompt build, any tool-result whose preceding message isn't its
+    //     matching assistant tool-call. The list keeps growing while the PROMPT
+    //     stays frozen — which is exactly the 49-identical-writes failure.
+    //  2. It runs last, after the TokenLimiter, and the array it was handed is
+    //     the PRE-trim snapshot — so returning it re-inserts everything the
+    //     TokenLimiter just removed, silently undoing the context cap.
+    // `void` is the safe contract, and it is what Mastra's own per-step
+    // processors use (TokenLimiter returns void; ToolCallFilter returns `{}`).
   }
 }
