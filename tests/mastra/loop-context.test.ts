@@ -69,10 +69,19 @@ function errorSummary(events: Array<Record<string, unknown>>): string {
   );
 }
 
-/** Every `write_file` path requested across all captured requests, in order. */
-function writtenPaths(): string[] {
+/**
+ * Every `write_file` path in ONE request's message history, in order.
+ *
+ * Defaults to the LAST request, which is the only meaningful one: when the loop
+ * works correctly each request REPEATS the whole prior history, so scanning all
+ * captured requests reports `[main, main, config, main, config, manifest]` for a
+ * perfectly healthy 3-file run and any uniqueness check on it fails by
+ * construction. The final request holds the complete history exactly once.
+ */
+function writtenPaths(index = captured.length - 1): string[] {
   const paths: string[] = [];
-  for (const body of captured) {
+  const body = captured[index];
+  if (body) {
     for (const m of (body.messages ?? []) as Array<Record<string, unknown>>) {
       const calls = (m.tool_calls ?? []) as Array<{ function?: { arguments?: string } }>;
       for (const c of calls) {
@@ -199,6 +208,40 @@ describe("agentic loop context + step budget", () => {
     // Each file is written exactly once. Duplicates ARE the live failure.
     const paths = writtenPaths();
     expect(new Set(paths).size).toBe(paths.length);
+  }, 120_000);
+
+  // EXPERIMENT for myrp-build-mg6 / mastra-ai#19814. The upstream report says the
+  // lost tool result requires a NON-yolo controller: `buildSharedRunOptions()` sets
+  // `requireToolApproval: !isYolo`, so with yolo off every call raises an approval
+  // chunk — which the controller silently consumes and self-approves for any tool
+  // whose effective policy is already `allow` (ours: the whole `edit` category).
+  // That self-approval goes through resume, and resume is where the result is lost.
+  // `session.state.set({ yolo: true })` short-circuits `resolveToolApproval` to
+  // "allow" before the gate, so no approval chunk and no resume. Same fixture as
+  // the reproduction above — the ONLY difference is yolo.
+  it("carries tool results when the session is yolo", async () => {
+    await runtime.session.state.set({ yolo: true });
+    const events: Array<Record<string, unknown>> = [];
+    await sendHarnessTurn(runtime, {
+      text: "build the multistep resource",
+      send: (e) => events.push(e as unknown as Record<string, unknown>),
+    });
+    const roles = () =>
+      captured.map((_, i) =>
+        messagesOf(i)
+          .map((m) => (m.tool_calls ? `${m.role}+tc` : String(m.role)))
+          .join(","),
+      );
+    const diag = `requests=${captured.length} paths=${JSON.stringify(writtenPaths())} roles=${JSON.stringify(roles())} errors=${errorSummary(events)}`;
+
+    expect(errorSummary(events), diag).toBe("");
+    expect(captured.length, diag).toBe(4);
+    const withToolResult = captured.filter((_, i) =>
+      messagesOf(i).some((m) => m.role === "tool"),
+    ).length;
+    expect(withToolResult, diag).toBe(3);
+    const paths = writtenPaths();
+    expect(new Set(paths).size, diag).toBe(paths.length);
   }, 120_000);
 
   it("stops at the step budget instead of running away", async () => {
