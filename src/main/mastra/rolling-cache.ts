@@ -60,7 +60,9 @@ export class RollingCacheBreakpoint implements Processor<"rolling-cache-breakpoi
     // the loop itself dropped them.
     if (process.env.MYRP_DEBUG_STEP_MESSAGES === "1") {
       // biome-ignore lint/suspicious/noConsole: this IS the diagnostic artifact.
-      console.log(`[step-messages] n=${messages.length} roles=${messages.map((m) => m.role).join(",")}`);
+      console.log(
+        `[step-messages] n=${messages.length} roles=${messages.map((m) => m.role).join(",")}`,
+      );
     }
 
     const last = messages[messages.length - 1];
