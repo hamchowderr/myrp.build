@@ -69,7 +69,13 @@ export class RollingCacheBreakpoint implements Processor<"rolling-cache-breakpoi
       // biome-ignore lint/suspicious/noConsole: not console — see below.
       require("node:fs").appendFileSync(
         process.env.MYRP_STEP_PROBE_FILE,
-        `n=${messages.length} roles=${messages.map((m) => m.role).join(",")}
+        `n=${messages.length} ${messages
+          .map((m) => {
+            const parts = (m.content as { parts?: { type: string }[] } | undefined)?.parts ?? [];
+            const kinds = parts.map((x) => x.type).join("|");
+            return `${m.role}[${parts.length}:${kinds}]`;
+          })
+          .join(" ")}
 `,
       );
     }
