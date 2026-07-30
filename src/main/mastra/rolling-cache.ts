@@ -1,17 +1,22 @@
 /**
  * Rolling Anthropic prompt-cache breakpoint for the supervisor loop (5o2.2).
  *
- * !!! MEASURED 2026-07-29: processInputStep IS NEVER CALLED. Two independent
- * probes agree — an env-gated console.log printed nothing across a 4-step run,
- * and making the method throw produced no error. So this processor is currently
- * DEAD CODE and the rolling breakpoint it describes does not exist at runtime.
- * The prompt-cache hits observed live (25,395 of 25,398 tokens read from cache)
- * come from the SYSTEM-message ephemeral marker in agent-config.ts, not from
- * here. Do not cite this file as evidence the conversation prefix is cached.
- * Why it isn't invoked is not yet known (it is registered in `inputProcessors`
- * alongside TokenLimiter, whose own processInputStep does run). Tracked on
- * myrp-build-mg6; the class is kept, unmodified in behaviour, so the fix is a
- * wiring change rather than a rewrite.
+ * MEASURED 2026-07-29 (corrects an earlier note in this file that claimed this
+ * method never runs). It DOES run. A console.log probe printed nothing and a
+ * deliberate `throw` produced no error, because a processor executing inside
+ * Mastra's combined processor WORKFLOW has both swallowed — so neither is a valid
+ * probe here. Only an unswallowable side effect (a file append) settles it.
+ *
+ * What that probe actually showed, across a 4-step run, is the real finding for
+ * myrp-build-mg6: the per-step message list this processor is handed is
+ *     n=1 roles=signal
+ *     n=2 roles=signal,assistant
+ *     n=2 roles=signal,assistant   (repeating, never growing)
+ * It contains NO `user` message and NO `tool` message, and stops growing at two.
+ * So by the time the per-step processors see it, the conversation the loop is
+ * carrying holds neither the user's request nor any tool result — while the
+ * provider request built from it does contain `user` and sometimes `tool`. The
+ * two views disagree, which is where the next investigation starts.
  *
  * The supervisor re-sends the whole growing conversation on every step (up to 30);
  * tool results carry large file contents, so each step re-pays full input-token
@@ -58,6 +63,16 @@ export class RollingCacheBreakpoint implements Processor<"rolling-cache-breakpoi
     // include the tool results but the provider request does not, the loss is at
     // prompt-build time (filterIncompleteToolCalls); if they are already missing,
     // the loop itself dropped them.
+    if (process.env.MYRP_STEP_PROBE_FILE) {
+      // File write, not console/throw: a workflow step can swallow both, so this
+      // is the only probe that cannot lie about whether this method ran.
+      // biome-ignore lint/suspicious/noConsole: not console — see below.
+      require("node:fs").appendFileSync(
+        process.env.MYRP_STEP_PROBE_FILE,
+        `n=${messages.length} roles=${messages.map((m) => m.role).join(",")}
+`,
+      );
+    }
     if (process.env.MYRP_DEBUG_STEP_MESSAGES === "1") {
       // biome-ignore lint/suspicious/noConsole: this IS the diagnostic artifact.
       console.log(
