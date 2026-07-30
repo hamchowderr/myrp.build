@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Session } from "@mastra/core/agent-controller";
@@ -133,5 +133,94 @@ describe("tool-level requireApproval survives yolo", () => {
     ).toBe(false);
     // It didn't merely skip the gate — the tool actually ran.
     expect(types, `events: ${JSON.stringify(types)}`).toContain("tool_end");
+  }, 60_000);
+});
+
+/**
+ * The same question for the tools we DON'T author. execute_command / delete are
+ * Mastra Workspace tools gated by a different mechanism — the Workspace's own
+ * per-tool config (`tools: { <name>: { requireApproval } }`, workspace.ts), which
+ * its docs say "replaces the provider-level requireApproval". If THAT survives
+ * yolo, the dangerous-shell surface stays protected for free; if it doesn't, any
+ * yolo-based fix has to re-gate host command execution and deletes itself.
+ *
+ * This is the tool the secure default exists for: a prompt injection reaching
+ * execute_command is host code execution.
+ */
+describe("workspace-level requireApproval under yolo", () => {
+  let root: string;
+  let victim: string;
+  let harness: ReturnType<typeof createFiveMHarness>;
+  let workspace: ReturnType<typeof createFiveMWorkspace>;
+
+  beforeEach(async () => {
+    root = mkdtempSync(join(tmpdir(), "yolo-ws-approval-"));
+    victim = join(root, "[local]", "victim");
+    mkdirSync(victim, { recursive: true });
+    writeFileSync(join(victim, "fxmanifest.lua"), "fx_version 'cerulean'\ngame 'gta5'\n");
+    // requireApproval: true → the WORKSPACE gates delete, not the session policy.
+    workspace = createFiveMWorkspace(root, { requireApproval: true });
+    await workspace.init();
+    harness = createFiveMHarness(workspace, { storage: localStore() });
+    await harness.init();
+  }, 60_000);
+
+  afterEach(async () => {
+    await harness.destroy().catch(() => {});
+    await workspace.destroy().catch(() => {});
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  /**
+   * Run the gated delete under `yolo`, DECLINING if the gate fires. Deliberately
+   * NOT applying applyFiveMPermissions: this must isolate the workspace-level
+   * gate from the session-policy gate, or a pass proves nothing about which one
+   * held. The file surviving is the ground truth — events can lie, the disk can't.
+   */
+  async function runDelete(yolo: boolean): Promise<{ gated: boolean; survived: boolean }> {
+    let session: Session | null = null;
+    let responded = false;
+    let gated = false;
+    await runHarnessTurn(harness, {
+      text: "delete the victim resource",
+      resourceId: "ws_t__srv_t",
+      prepareSession: async (s) => {
+        if (yolo) await s.state.set({ yolo: true });
+      },
+      onSession: (s) => {
+        session = s;
+      },
+      send: (e) => {
+        if (e.type === "tool_approval_required" && !responded) {
+          responded = true;
+          gated = true;
+          queueMicrotask(() => session?.respondToToolApproval({ decision: "decline" }));
+        }
+      },
+    });
+    return { gated, survived: existsSync(victim) };
+  }
+
+  it("gates the workspace delete with yolo OFF (positive control)", async () => {
+    const { gated, survived } = await runDelete(false);
+    expect(gated).toBe(true);
+    expect(survived, "declined delete must not touch the disk").toBe(true);
+  }, 60_000);
+
+  /**
+   * MEASURED 2026-07-29: workspace-level `requireApproval` does NOT survive yolo
+   * either. No gate fired and the victim directory was REALLY deleted — asserted
+   * on disk, not on events. So yolo removes ALL HITL: both the tools we author
+   * (deploy/install/import_schema/server-lifecycle, above) and the Mastra
+   * Workspace tools we don't (execute_command, kill_process, delete).
+   *
+   * That sizes any yolo-based fix for myrp-build-mg6: our own tools can re-gate
+   * inside `execute`, but execute_command / kill_process / delete have no execute
+   * of ours to hook, so they must be wrapped or disabled — they cannot simply be
+   * left on. This is the tool the secure default exists for.
+   */
+  it("yolo VOIDS the workspace gate — the delete really happens", async () => {
+    const { gated, survived } = await runDelete(true);
+    expect({ gated, survived }).toEqual({ gated: false, survived: false });
   }, 60_000);
 });
