@@ -24,6 +24,30 @@ export interface ReadableErrorPayload {
   name?: string;
   stack?: string;
   code?: string;
+  /** Extra own scalar fields off the original error (statusCode, type, …). */
+  detail?: Record<string, string | number | boolean>;
+}
+
+/**
+ * Diagnostic scalars worth keeping. A whitelist of message/name/stack/code was
+ * NOT enough: a Vercel AI Gateway failure carries `statusCode` and `type`, and
+ * dropping them left us unable to say whether a failed generation was a 429 rate
+ * limit or an upstream 502 — the SDK picks a DIFFERENT error class per case
+ * (GatewayRateLimitError vs GatewayResponseError), so those two fields are the
+ * whole answer. Copy any own scalar instead of guessing which names matter.
+ */
+function scalarDetails(o: Record<string, unknown>): Record<string, string | number | boolean> {
+  const skip = new Set(["message", "name", "stack", "code", "cause", "response"]);
+  const detail: Record<string, string | number | boolean> = {};
+  for (const [k, v] of Object.entries(o)) {
+    if (skip.has(k) || detail[k] !== undefined) continue;
+    if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
+      // Bound it: an error can carry a whole response body as a string.
+      detail[k] = typeof v === "string" && v.length > 500 ? `${v.slice(0, 500)}…` : v;
+    }
+    if (Object.keys(detail).length >= 12) break;
+  }
+  return detail;
 }
 
 /** Pull a readable payload out of whatever an event's `error` field holds. */
@@ -31,11 +55,15 @@ function toPayload(raw: unknown): ReadableErrorPayload {
   if (raw instanceof Error) {
     const { message, name, stack } = raw;
     const code = (raw as { code?: unknown }).code;
+    // Own enumerable fields survive here even though message/name/stack do not —
+    // this is where statusCode/type on a provider error lives.
+    const detail = scalarDetails(raw as unknown as Record<string, unknown>);
     return {
       message: message || name || "Error (no message)",
       name,
       ...(stack ? { stack } : {}),
       ...(typeof code === "string" ? { code } : {}),
+      ...(Object.keys(detail).length ? { detail } : {}),
     };
   }
   if (typeof raw === "string") return { message: raw };
@@ -46,11 +74,13 @@ function toPayload(raw: unknown): ReadableErrorPayload {
     if (inner && inner !== raw) return toPayload(inner);
     const message = typeof o.message === "string" ? o.message : undefined;
     if (message) {
+      const detail = scalarDetails(o);
       return {
         message,
         ...(typeof o.name === "string" ? { name: o.name } : {}),
         ...(typeof o.stack === "string" ? { stack: o.stack } : {}),
         ...(typeof o.code === "string" ? { code: o.code } : {}),
+        ...(Object.keys(detail).length ? { detail } : {}),
       };
     }
     // An object with nothing readable — say so explicitly rather than forwarding
@@ -75,6 +105,12 @@ export function readableError<T extends { type?: string }>(event: T): T {
   if (event?.type !== "error") return event;
   const payload = toPayload((event as { error?: unknown }).error);
   // Also surface it in main: the 3yw run left no trace in the main log either.
-  log.error(`[harness] ${payload.message}${payload.stack ? `\n${payload.stack}` : ""}`);
+  // `detail` is logged FIRST because it carries the identifying facts (statusCode,
+  // type) that decide whether a failure was a rate limit, an auth problem, or an
+  // upstream outage — the message alone does not.
+  const detail = payload.detail ? ` ${JSON.stringify(payload.detail)}` : "";
+  log.error(
+    `[harness] ${payload.name ?? "Error"}:${detail} ${payload.message}${payload.stack ? `\n${payload.stack}` : ""}`,
+  );
   return { ...event, error: payload };
 }

@@ -57,6 +57,33 @@ describe("readableError", () => {
     expect(payload(readableError({ type: "error" })).message).toMatch(/unknown error/i);
   });
 
+  it("keeps statusCode and type — the fields that name a gateway failure", () => {
+    // The real case: a Vercel AI Gateway failure. The SDK throws a DIFFERENT
+    // class per cause (GatewayRateLimitError at 429 vs GatewayResponseError for a
+    // malformed upstream reply), and statusCode/type are what distinguish "we got
+    // rate limited" from "the provider fell over". A whitelist of
+    // message/name/stack/code silently dropped both, leaving a failed generation
+    // undiagnosable.
+    const err = Object.assign(new Error("Invalid error response format"), {
+      statusCode: 502,
+      type: "response_error",
+    });
+    const out = payload(clone(readableError({ type: "error", error: err }))) as unknown as {
+      message: string;
+      detail?: Record<string, unknown>;
+    };
+    expect(out.detail?.statusCode).toBe(502);
+    expect(out.detail?.type).toBe("response_error");
+  });
+
+  it("bounds a huge scalar field instead of forwarding it whole", () => {
+    const err = Object.assign(new Error("boom"), { body: "x".repeat(5000) });
+    const out = payload(readableError({ type: "error", error: err })) as unknown as {
+      detail?: Record<string, string>;
+    };
+    expect(out.detail?.body.length).toBeLessThan(600);
+  });
+
   it("passes non-error events through untouched", () => {
     // This sits on the hot path for every event of every run — it must not
     // rewrite or reallocate ordinary traffic.
