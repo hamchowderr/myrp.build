@@ -71,9 +71,25 @@ export class RollingCacheBreakpoint implements Processor<"rolling-cache-breakpoi
         process.env.MYRP_STEP_PROBE_FILE,
         `n=${messages.length} ${messages
           .map((m) => {
-            const parts = (m.content as { parts?: { type: string }[] } | undefined)?.parts ?? [];
-            const kinds = parts.map((x) => x.type).join("|");
-            return `${m.role}[${parts.length}:${kinds}]`;
+            const parts =
+              (
+                m.content as
+                  | {
+                      parts?: {
+                        type: string;
+                        toolInvocation?: { toolCallId?: string; state?: string };
+                      }[];
+                    }
+                  | undefined
+              )?.parts ?? [];
+            const kinds = parts
+              .filter((x) => x.type === "tool-invocation")
+              .map(
+                (x) =>
+                  `${String(x.toolInvocation?.toolCallId).slice(-6)}:${x.toolInvocation?.state}`,
+              )
+              .join(" ");
+            return `${m.role}[${parts.length}] tools{${kinds}}`;
           })
           .join(" ")}
 `,
@@ -85,6 +101,10 @@ export class RollingCacheBreakpoint implements Processor<"rolling-cache-breakpoi
         `[step-messages] n=${messages.length} roles=${messages.map((m) => m.role).join(",")}`,
       );
     }
+
+    // A/B for myrp-build-mg6: skip ONLY the mutation, keep the probe, so the
+    // experiment isolates `last.content` replacement from processor registration.
+    if (process.env.MYRP_ROLLING_CACHE_NO_MUTATE === "1") return;
 
     const last = messages[messages.length - 1];
     if (!last?.content) return;
