@@ -47,6 +47,34 @@ export const TOKEN_LIMIT =
   Number.parseInt(process.env.MASTRA_TOKEN_LIMIT ?? "", 10) || DEFAULT_TOKEN_LIMIT;
 
 /**
+ * The supervisor's loop budget, expressed BOTH ways on purpose (myrp-build-5fi).
+ *
+ * `maxSteps` alone is DEAD CODE on the AgentController path. The controller's
+ * `buildSharedRunOptions()` hardcodes `maxSteps: CONTROLLER_MAX_STEPS` (= 1000) and
+ * passes it as a per-CALL stream option; per-call options beat `defaultOptions`, so
+ * our 30 was silently replaced by 1000 on every live run. `AgentControllerConfig`
+ * exposes no step budget of its own, so there is nothing to configure there.
+ *
+ * `stopWhen` is the lever that survives: the controller never sets it, and the Agent
+ * merges per-key (`deepMerge(defaultOptions, options)`), so ours comes through — on
+ * the resume path too. Mastra then treats `maxSteps` as sugar for
+ * `stepCountIs(maxSteps)` and composes the conditions with OR
+ * (`stopWhenToUse = [stepCountIs(maxSteps), ...userConditions]`, evaluated with
+ * `.some()`), so ours wins whenever it is the lower bound.
+ *
+ * Both are kept because they cover different callers: `maxSteps` is what the
+ * NON-controller paths honour (Studio, a direct `agent.stream()`), `stopWhen` is what
+ * the controller honours. One constant so they can never drift.
+ *
+ * The predicate is written inline rather than with `stepCountIs` from `ai` —
+ * @mastra/core doesn't re-export that helper, and `StopCondition` is just
+ * `({ steps }) => boolean`, so this avoids depending on an aliased AI-SDK internal.
+ */
+const DEFAULT_MAX_STEPS = 30;
+export const MAX_STEPS =
+  Number.parseInt(process.env.MASTRA_MAX_STEPS ?? "", 10) || DEFAULT_MAX_STEPS;
+
+/**
  * Prod inference-proxy config. When set, the agent's model is built with the
  * Anthropic provider pointed at our Supabase edge function (which holds the gateway
  * key + meters usage), authed with the user's session token. The function forwards to
@@ -229,7 +257,12 @@ export function buildFiveMAgentConfig(workspace: AnyWorkspace, opts: FiveMAgentO
       // LIVE multi-step tool results are preserved (filterAfterToolSteps is off).
       // NB: Mastra unified memory processors onto the agent — the old
       // `new Memory({ processors })` now THROWS, so this is the correct home.
-      new ToolCallFilter(),
+      // Kill switch (MYRP_DISABLE_TOOL_CALL_FILTER=1) so this can be A/B'd against
+      // a context bug without a rebuild — it is the one processor here that
+      // deletes tool results, and it returns a bare array, which Mastra treats as
+      // the authoritative message list. Mastra's own reference coding agent
+      // registers NO input processors at all, so dropping it is defensible.
+      ...(process.env.MYRP_DISABLE_TOOL_CALL_FILTER === "1" ? [] : [new ToolCallFilter()]),
       // Context-window cap — bounds input tokens per step; preserves system.
       new TokenLimiter(TOKEN_LIMIT),
       // 5o2.2: rolling Anthropic cache breakpoint on the last message each step so
@@ -255,9 +288,14 @@ export function buildFiveMAgentConfig(workspace: AnyWorkspace, opts: FiveMAgentO
     errorProcessors: [new PrefillErrorHandler()],
     // Conversation memory for multi-turn follow-ups; omitted = one-shot.
     ...(opts.memory ? { memory: opts.memory } : {}),
-    // maxSteps lives here (not per stream() call) so every caller — runGeneration
-    // and the e2e harness — gets the same loop budget for multi-file resources.
-    defaultOptions: { maxSteps: 30 },
+    // The loop budget lives here (not per stream() call) so every caller —
+    // runGeneration, the controller, and the e2e harness — gets the same bound.
+    // BOTH forms are required; see MAX_STEPS for why maxSteps alone is ignored by
+    // the AgentController and stopWhen is the one that survives.
+    defaultOptions: {
+      maxSteps: MAX_STEPS,
+      stopWhen: ({ steps }: { steps: unknown[] }) => steps.length >= MAX_STEPS,
+    },
     // Single-agent by default; sub-agents only when explicitly opted in (and not
     // until the doc-correct multi-agent architecture lands).
     ...(opts.useSubAgents ? { agents: createSubAgents(workspace) } : {}),

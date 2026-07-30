@@ -1,6 +1,23 @@
 /**
  * Rolling Anthropic prompt-cache breakpoint for the supervisor loop (5o2.2).
  *
+ * MEASURED 2026-07-29 (corrects an earlier note in this file that claimed this
+ * method never runs). It DOES run. A console.log probe printed nothing and a
+ * deliberate `throw` produced no error, because a processor executing inside
+ * Mastra's combined processor WORKFLOW has both swallowed — so neither is a valid
+ * probe here. Only an unswallowable side effect (a file append) settles it.
+ *
+ * What that probe actually showed, across a 4-step run, is the real finding for
+ * myrp-build-mg6: the per-step message list this processor is handed is
+ *     n=1 roles=signal
+ *     n=2 roles=signal,assistant
+ *     n=2 roles=signal,assistant   (repeating, never growing)
+ * It contains NO `user` message and NO `tool` message, and stops growing at two.
+ * So by the time the per-step processors see it, the conversation the loop is
+ * carrying holds neither the user's request nor any tool result — while the
+ * provider request built from it does contain `user` and sometimes `tool`. The
+ * two views disagree, which is where the next investigation starts.
+ *
  * The supervisor re-sends the whole growing conversation on every step (up to 30);
  * tool results carry large file contents, so each step re-pays full input-token
  * price for the same prefix. The system message already carries an ephemeral cache
@@ -22,8 +39,12 @@
  * The marker is namespaced under `anthropic`, so non-Anthropic providers ignore it.
  * It never throws: on any unexpected message shape it leaves the messages untouched
  * so a caching tweak can never break a generation.
+ *
+ * MUTATES IN PLACE AND RETURNS VOID. That is load-bearing, not stylistic — see the
+ * long note in processInputStep. Returning the message array from a per-step
+ * processor makes Mastra rebuild the whole MessageList and was the mechanism behind
+ * myrp-build-mg6 (context frozen, the same file written 49 times).
  */
-import type { MastraDBMessage } from "@mastra/core/agent/message-list";
 import type { ProcessInputStepArgs, Processor } from "@mastra/core/processors";
 
 const EPHEMERAL = { type: "ephemeral" as const };
@@ -32,9 +53,58 @@ export class RollingCacheBreakpoint implements Processor<"rolling-cache-breakpoi
   readonly id = "rolling-cache-breakpoint" as const;
   readonly name = "Rolling Cache Breakpoint";
 
-  async processInputStep(args: ProcessInputStepArgs): Promise<MastraDBMessage[] | void> {
+  async processInputStep(args: ProcessInputStepArgs): Promise<void> {
     const messages = args.messages;
     if (!Array.isArray(messages) || messages.length === 0) return;
+
+    // Diagnostic for myrp-build-mg6 (MYRP_DEBUG_STEP_MESSAGES=1). This processor
+    // is known to run on every step, so it is the cheapest honest probe of what
+    // the MessageList actually holds BEFORE the prompt is built. If the roles here
+    // include the tool results but the provider request does not, the loss is at
+    // prompt-build time (filterIncompleteToolCalls); if they are already missing,
+    // the loop itself dropped them.
+    if (process.env.MYRP_STEP_PROBE_FILE) {
+      // File write, not console/throw: a workflow step can swallow both, so this
+      // is the only probe that cannot lie about whether this method ran.
+      // biome-ignore lint/suspicious/noConsole: not console — see below.
+      require("node:fs").appendFileSync(
+        process.env.MYRP_STEP_PROBE_FILE,
+        `n=${messages.length} ${messages
+          .map((m) => {
+            const parts =
+              (
+                m.content as
+                  | {
+                      parts?: {
+                        type: string;
+                        toolInvocation?: { toolCallId?: string; state?: string };
+                      }[];
+                    }
+                  | undefined
+              )?.parts ?? [];
+            const kinds = parts
+              .filter((x) => x.type === "tool-invocation")
+              .map(
+                (x) =>
+                  `${String(x.toolInvocation?.toolCallId).slice(-6)}:${x.toolInvocation?.state}`,
+              )
+              .join(" ");
+            return `${m.role}[${parts.length}] tools{${kinds}}`;
+          })
+          .join(" ")}
+`,
+      );
+    }
+    if (process.env.MYRP_DEBUG_STEP_MESSAGES === "1") {
+      // biome-ignore lint/suspicious/noConsole: this IS the diagnostic artifact.
+      console.log(
+        `[step-messages] n=${messages.length} roles=${messages.map((m) => m.role).join(",")}`,
+      );
+    }
+
+    // A/B for myrp-build-mg6: skip ONLY the mutation, keep the probe, so the
+    // experiment isolates `last.content` replacement from processor registration.
+    if (process.env.MYRP_ROLLING_CACHE_NO_MUTATE === "1") return;
 
     const last = messages[messages.length - 1];
     if (!last?.content) return;
@@ -50,6 +120,25 @@ export class RollingCacheBreakpoint implements Processor<"rolling-cache-breakpoi
         anthropic: { ...(existing.anthropic ?? {}), cacheControl: EPHEMERAL },
       },
     };
-    return messages;
+    // RETURN NOTHING — deliberately. `args.messages` IS the MessageList's own
+    // internal array (runProcessInputStep passes `messageList.get.all.db()`
+    // straight through, and that getter returns `this.messages`), so the mutation
+    // above has ALREADY landed. Returning the array is not a no-op: Mastra
+    // normalizes an array result to `{ messages }` and hands it to
+    // `applyMessagesToMessageList`, which treats it as the AUTHORITATIVE complete
+    // list — it deletes any id missing from it, then removes and re-adds EVERY
+    // message with `{ merge: false }`, re-tagging each one via `check.getSource()`.
+    // Two ways that bites (myrp-build-mg6):
+    //  1. Re-tagged messages whose source can no longer be resolved fall back to
+    //     `defaultSource: "input"` — assistant/tool rows come back as USER rows.
+    //     `filterIncompleteToolCalls` (MessageList default TRUE) then drops, at
+    //     every prompt build, any tool-result whose preceding message isn't its
+    //     matching assistant tool-call. The list keeps growing while the PROMPT
+    //     stays frozen — which is exactly the 49-identical-writes failure.
+    //  2. It runs last, after the TokenLimiter, and the array it was handed is
+    //     the PRE-trim snapshot — so returning it re-inserts everything the
+    //     TokenLimiter just removed, silently undoing the context cap.
+    // `void` is the safe contract, and it is what Mastra's own per-step
+    // processors use (TokenLimiter returns void; ToolCallFilter returns `{}`).
   }
 }

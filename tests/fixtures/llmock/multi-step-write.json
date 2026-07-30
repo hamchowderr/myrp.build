@@ -1,0 +1,53 @@
+{
+  "fixtures": [
+    {
+      "match": { "userMessage": "build the multistep resource", "hasToolResult": false },
+      "response": {
+        "toolCalls": [
+          {
+            "id": "call_server",
+            "name": "mastra_workspace_write_file",
+            "arguments": {
+              "path": "[local]/multistep/server/main.lua",
+              "content": "lib.addCommand('multistep', {}, function(source) end)\n"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "match": { "toolCallId": "call_server" },
+      "response": {
+        "toolCalls": [
+          {
+            "id": "call_config",
+            "name": "mastra_workspace_write_file",
+            "arguments": {
+              "path": "[local]/multistep/shared/config.lua",
+              "content": "Config = {}\n"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "match": { "toolCallId": "call_config" },
+      "response": {
+        "toolCalls": [
+          {
+            "id": "call_manifest",
+            "name": "mastra_workspace_write_file",
+            "arguments": {
+              "path": "[local]/multistep/fxmanifest.lua",
+              "content": "fx_version 'cerulean'\ngame 'gta5'\nshared_script 'shared/config.lua'\nserver_script 'server/main.lua'\n"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "match": { "toolCallId": "call_manifest" },
+      "response": { "content": "Built multistep with three files." }
+    }
+  ]
+}

@@ -17,9 +17,54 @@
  */
 import type { AgentController, Session } from "@mastra/core/agent-controller";
 import { InMemoryStore, MastraCompositeStore } from "@mastra/core/storage";
+import { MAX_STEPS } from "./agent-config";
 import { createFiveMHarness, type FiveMHarnessOptions } from "./harness";
 import { applyFiveMPermissions } from "./permissions";
 import { createAndInitWorkspace } from "./workspace";
+
+/**
+ * Client-side loop breaker — the ONLY step bound that actually holds on the
+ * AgentController path (myrp-build-5fi).
+ *
+ * The controller's `buildSharedRunOptions()` hardcodes `maxSteps: 1000` and passes
+ * it as a per-CALL stream option, which beats the agent's `defaultOptions.maxSteps`.
+ * `AgentControllerConfig` exposes no step budget of its own, and a
+ * `defaultOptions.stopWhen` does NOT reach the loop either — verified empirically:
+ * with a budget of 3 the runaway fixture still ran until the test timed out. Mastra
+ * forwards `maxSteps` from agent defaults in several places but never `stopWhen`.
+ * So there is no supported way to bound the controller's MAIN agent from config,
+ * which is why this lives here instead.
+ *
+ * Counting `usage_update` counts MODEL CALLS, which is the thing that actually costs
+ * money — a real run burned 1.29M tokens over 53 unbounded steps, rewriting one file
+ * 49 times. On trip we abort the session and emit an error so the failure is visible
+ * rather than looking like a quiet stop.
+ */
+function withStepBreaker(
+  session: Session,
+  send: (event: HarnessWireEvent) => void,
+  budget: number = MAX_STEPS,
+): (event: HarnessWireEvent) => void {
+  let modelCalls = 0;
+  let tripped = false;
+  return (event: HarnessWireEvent): void => {
+    send(event);
+    if (tripped || (event as { type?: string }).type !== "usage_update") return;
+    modelCalls += 1;
+    // Trip on EXCEEDING the budget, not on reaching it: a run that legitimately
+    // finishes on its last allowed call must not be aborted with an error just as
+    // it completes. The cost is one extra model call before the abort lands.
+    if (modelCalls <= budget) return;
+    tripped = true;
+    send({
+      type: "error",
+      error:
+        `Step budget reached (${budget} model calls) — the run was stopped to avoid ` +
+        `an unbounded loop. This usually means the agent stopped making progress.`,
+    } as HarnessWireEvent);
+    session.abort();
+  };
+}
 
 /** A serialized Harness event (or a transport sentinel) sent to the renderer. */
 export type HarnessWireEvent = { type: string; [k: string]: unknown };
@@ -83,7 +128,8 @@ export async function runHarnessTurn(
   // Configure the session (e.g. the HITL permission policy) before the run.
   await opts.prepareSession?.(session);
 
-  const unsubscribe = session.subscribe((event) => opts.send(event as HarnessWireEvent));
+  const guardedSend = withStepBreaker(session, opts.send);
+  const unsubscribe = session.subscribe((event) => guardedSend(event as HarnessWireEvent));
   opts.send({ type: "__thread__", threadId });
   try {
     await session.sendMessage({ content: opts.text });
@@ -311,7 +357,8 @@ export async function sendHarnessTurn(
   },
 ): Promise<HarnessTurnResult> {
   const { session } = runtime;
-  runtime.setForward(opts.send);
+  // Fresh breaker per turn — the budget is per run, not per session.
+  runtime.setForward(withStepBreaker(session, opts.send));
   const releaseAbort = bindAbort(session, opts.signal);
 
   let threadId = opts.threadId;
@@ -350,7 +397,8 @@ export async function resumeHarnessSuspension(
   },
 ): Promise<{ suspended: boolean }> {
   const { session } = runtime;
-  runtime.setForward(opts.send);
+  // Fresh breaker per turn — the budget is per run, not per session.
+  runtime.setForward(withStepBreaker(session, opts.send));
   const releaseAbort = bindAbort(session, opts.signal);
 
   let suspended = false;
