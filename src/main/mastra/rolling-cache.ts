@@ -1,6 +1,18 @@
 /**
  * Rolling Anthropic prompt-cache breakpoint for the supervisor loop (5o2.2).
  *
+ * !!! MEASURED 2026-07-29: processInputStep IS NEVER CALLED. Two independent
+ * probes agree — an env-gated console.log printed nothing across a 4-step run,
+ * and making the method throw produced no error. So this processor is currently
+ * DEAD CODE and the rolling breakpoint it describes does not exist at runtime.
+ * The prompt-cache hits observed live (25,395 of 25,398 tokens read from cache)
+ * come from the SYSTEM-message ephemeral marker in agent-config.ts, not from
+ * here. Do not cite this file as evidence the conversation prefix is cached.
+ * Why it isn't invoked is not yet known (it is registered in `inputProcessors`
+ * alongside TokenLimiter, whose own processInputStep does run). Tracked on
+ * myrp-build-mg6; the class is kept, unmodified in behaviour, so the fix is a
+ * wiring change rather than a rewrite.
+ *
  * The supervisor re-sends the whole growing conversation on every step (up to 30);
  * tool results carry large file contents, so each step re-pays full input-token
  * price for the same prefix. The system message already carries an ephemeral cache
@@ -39,6 +51,17 @@ export class RollingCacheBreakpoint implements Processor<"rolling-cache-breakpoi
   async processInputStep(args: ProcessInputStepArgs): Promise<void> {
     const messages = args.messages;
     if (!Array.isArray(messages) || messages.length === 0) return;
+
+    // Diagnostic for myrp-build-mg6 (MYRP_DEBUG_STEP_MESSAGES=1). This processor
+    // is known to run on every step, so it is the cheapest honest probe of what
+    // the MessageList actually holds BEFORE the prompt is built. If the roles here
+    // include the tool results but the provider request does not, the loss is at
+    // prompt-build time (filterIncompleteToolCalls); if they are already missing,
+    // the loop itself dropped them.
+    if (process.env.MYRP_DEBUG_STEP_MESSAGES === "1") {
+      // biome-ignore lint/suspicious/noConsole: this IS the diagnostic artifact.
+      console.log(`[step-messages] n=${messages.length} roles=${messages.map((m) => m.role).join(",")}`);
+    }
 
     const last = messages[messages.length - 1];
     if (!last?.content) return;
