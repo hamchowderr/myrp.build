@@ -410,6 +410,27 @@ const api = {
     return () => ipcRenderer.removeListener("auth:signin-code", handler);
   },
 
+  // The OTHER outcome. A sign-in attempt can end without a code — the loopback
+  // window expired, or Discord denied it — and before this existed that was
+  // completely silent: the browser landed on connection-refused and the app kept
+  // waiting with no message. Returns a cleanup fn.
+  onAuthSignInFailed: (
+    callback: (info: { reason: "timeout" | "denied" | "error"; detail?: string }) => void,
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      info: { reason: "timeout" | "denied" | "error"; detail?: string },
+    ): void => {
+      try {
+        callback(info);
+      } catch (err) {
+        console.error("[preload] auth signin-failed handler error:", err);
+      }
+    };
+    ipcRenderer.on("auth:signin-failed", handler);
+    return () => ipcRenderer.removeListener("auth:signin-failed", handler);
+  },
+
   onGameFrame: (callback: (frame: GameFrameMessage) => void): (() => void) => {
     const handler = (_event: Electron.IpcRendererEvent, frame: GameFrameMessage): void => {
       try {

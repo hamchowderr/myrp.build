@@ -54,6 +54,40 @@ const SIGNIN_RETURN_HTML = (ok: boolean) => `<!doctype html>
 
 let signInServer: Server | undefined;
 let signInTimer: ReturnType<typeof setTimeout> | undefined;
+/**
+ * How long the loopback waits for the browser to come back.
+ *
+ * Was 5 minutes, which is not enough for a FIRST sign-in: the user has to find a
+ * Discord password, often clear 2FA, sometimes create the account, and then
+ * authorise the app. Measured on the first real prod sign-in (2026-07-30): attempt
+ * one expired at exactly 5m, attempt two took 10s because Discord was already
+ * authenticated. On launch day every user is doing the slow version.
+ *
+ * A longer window costs nothing: the listener is an ephemeral port bound to
+ * 127.0.0.1 that only RECEIVES an authorization code, and it is torn down the
+ * moment the callback lands.
+ */
+const SIGNIN_TIMEOUT_MS = 15 * 60_000;
+
+/** Why a sign-in attempt ended without a code. */
+export type SignInFailure = "timeout" | "denied" | "error";
+
+/**
+ * Tell the renderer an attempt died so the UI can say so and offer a retry.
+ *
+ * Without this the failure is INVISIBLE: `stopSignInServer` just closes the
+ * socket, so the browser lands on connection-refused and the app sits there with
+ * no message — the user cannot tell whether it is still working. Same failure
+ * family as myrp-build-3yw: the mechanism works, but a failure path told the user
+ * nothing.
+ */
+function notifySignInFailed(reason: SignInFailure, detail?: string): void {
+  const main = state.mainWindow;
+  if (!main || main.isDestroyed()) return;
+  if (main.isMinimized()) main.restore();
+  main.webContents.send("auth:signin-failed", { reason, detail });
+}
+
 function stopSignInServer(): void {
   if (signInTimer) {
     clearTimeout(signInTimer);
@@ -150,6 +184,9 @@ export function registerAuthHandlers(): void {
             main.webContents.send("auth:signin-code", code);
           } else {
             log.warn("[signin] loopback hit without a code", errParam ? `(${errParam})` : "");
+            // Discord denied, or the provider returned an error. Surface it —
+            // previously this only logged and the UI waited forever.
+            notifySignInFailed("denied", errParam ?? undefined);
           }
         } catch (err) {
           log.error("[signin] loopback handler error:", err);
@@ -175,9 +212,12 @@ export function registerAuthHandlers(): void {
         signInServer = server;
         // Abandon the attempt if the user never returns (frees the port).
         signInTimer = setTimeout(() => {
-          log.warn("[signin] loopback timed out (no callback within 5m)");
+          log.warn(
+            `[signin] loopback timed out (no callback within ${SIGNIN_TIMEOUT_MS / 60_000}m)`,
+          );
           stopSignInServer();
-        }, 5 * 60_000);
+          notifySignInFailed("timeout");
+        }, SIGNIN_TIMEOUT_MS);
         const cb = `http://127.0.0.1:${port}/cb`;
         log.info("[signin] loopback ready; awaiting OAuth code at", cb);
         resolve(cb);
