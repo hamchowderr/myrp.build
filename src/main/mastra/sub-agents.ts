@@ -25,26 +25,10 @@ import type { AgentControllerSubagent } from "@mastra/core/agent-controller";
 import { type AnyWorkspace, WORKSPACE_TOOLS } from "@mastra/core/workspace";
 import { GROUND_RULES } from "./ground-rules";
 
-// EVERY specialist runs Sonnet 5 — same model as the supervisor. Verified live
-// against the gateway (HTTP 200) before being used here.
-//
-// This replaces a Haiku/Sonnet split where the cheap/mechanical roles (scouting,
-// lore lookup) ran Haiku 4.5. Two reasons it went:
-//
-//  1. PROMPT CACHING. Anthropic's minimum cacheable prompt is per-model —
-//     Sonnet 5 is 1,024 tokens, Haiku 4.5 is 4,096. Below the minimum, caching is
-//     silently skipped with NO error. GROUND_RULES alone is ~1,136 tokens, so a
-//     Haiku specialist's system message sat right around the threshold: it may or
-//     may not have cached, and nothing in the system would have told us. Uniform
-//     Sonnet 5 makes caching deterministic instead of a coin flip.
-//  2. One model across supervisor and specialists removes a whole class of
-//     version drift — the supervisor was on 4.6 while its specialists were on 4.5.
-//
-// The trade is real: Sonnet costs more per token than Haiku, so the mechanical
-// roles got more expensive. That is a deliberate bet that reliable caching beats a
-// cheaper per-token rate on prompts we re-send every step — and it is one line to
-// reintroduce a cheaper tier for scouting once cost-per-generation is actually
-// measured (myrp-build-fxe). Decide it from data, not from a guess either way.
+// Every specialist runs the same model as the supervisor. A cheaper tier for the
+// mechanical roles (scouting, lore) is reasonable — but Haiku 4.5 needs a
+// 4,096-token prompt before Anthropic caches anything, and ours sit near that
+// line, so it cached unpredictably. Revisit with real numbers (myrp-build-fxe).
 const SONNET = "anthropic/claude-sonnet-5";
 
 // Skill tools the workspace exposes when skills are configured (knowledge access).
