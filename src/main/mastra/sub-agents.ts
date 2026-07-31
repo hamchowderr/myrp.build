@@ -25,8 +25,11 @@ import type { AgentControllerSubagent } from "@mastra/core/agent-controller";
 import { type AnyWorkspace, WORKSPACE_TOOLS } from "@mastra/core/workspace";
 import { GROUND_RULES } from "./ground-rules";
 
-const HAIKU = "anthropic/claude-haiku-4-5";
-const SONNET = "anthropic/claude-sonnet-4-5";
+// Every specialist runs the same model as the supervisor. A cheaper tier for the
+// mechanical roles (scouting, lore) is reasonable — but Haiku 4.5 needs a
+// 4,096-token prompt before Anthropic caches anything, and ours sit near that
+// line, so it cached unpredictably. Revisit with real numbers (myrp-build-fxe).
+const SONNET = "anthropic/claude-sonnet-5";
 
 // Skill tools the workspace exposes when skills are configured (knowledge access).
 const SKILL_TOOLS = ["skill", "skill_search", "skill_read"];
@@ -109,7 +112,7 @@ const SPECIALISTS: SpecialistSpec[] = [
       "Read-only recon of existing server resources — reads fxmanifest files, scans for ox usage and naming conventions, catalogs existing resource names and exports. Never modifies files.",
     instructions:
       "You scout the server's existing resources to help the generator produce compatible, non-conflicting ox code. Use search and read tools to gather naming conventions, ox_lib/ox_inventory usage, and existing resource names. Report findings concisely. NEVER write or modify files.",
-    model: HAIKU,
+    model: SONNET,
     allowedWorkspaceTools: [...READ_TOOLS],
     usesWorkspace: true,
   },
@@ -142,7 +145,7 @@ const SPECIALISTS: SpecialistSpec[] = [
       "Generates GTA V lore-friendly parody names for businesses, brands, vehicles, locations, and items. Returns naming guidance only — writes no files.",
     instructions:
       "You generate lore-friendly parody names that fit Rockstar's satirical GTA V universe (businesses, brands, vehicles, districts, items). Return names + brief rationale as text. You do NOT write files. Load the lore skill for canonical references.",
-    model: HAIKU,
+    model: SONNET,
     // Text-only: skills for canonical lore, no filesystem/sandbox.
     allowedWorkspaceTools: [...SKILL_TOOLS],
     usesWorkspace: false,
@@ -165,7 +168,7 @@ const SPECIALISTS: SpecialistSpec[] = [
       "Read-only security review — source validation, server-authoritative economy, injection risks, rate limiting, ACE permission gaps in the FiveM client-server model.",
     instructions:
       "You audit a generated resource for FiveM security flaws: unvalidated net events, client-trusted economy/item logic, SQL built by string concatenation (use oxmysql parameters), missing rate limiting, and ACE permission gaps. Read-only. Report exploitable issues with the file/line and the fix. Load the security skill for patterns.",
-    model: HAIKU,
+    model: SONNET,
     allowedWorkspaceTools: [...READ_TOOLS],
     usesWorkspace: true,
   },
@@ -176,7 +179,7 @@ const SPECIALISTS: SpecialistSpec[] = [
       "Reads a generated resource and writes a README.md documenting features, events, exports, config, and setup. Owns README.md.",
     instructions:
       "You read the generated resource and write a clean README.md in the resource root: what it does, dependencies (ox_lib etc.), config keys, events/exports, and install steps. Accurate to the actual files — never invent features.",
-    model: HAIKU,
+    model: SONNET,
     // Reads everything, writes only README (write_file/edit_file — no mkdir/ast/sandbox).
     allowedWorkspaceTools: [
       ...READ_TOOLS,
