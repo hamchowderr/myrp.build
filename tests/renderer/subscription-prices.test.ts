@@ -21,7 +21,7 @@ const SRC = readFileSync(
 
 /** Live Stripe prices, verified 2026-07-31 against STRIPE_<TIER>_PRICE_ID. */
 const EXPECTED = [
-  { tier: "starter", price: "$29/mo", gens: "100 generations" },
+  { tier: "starter", price: "$20/mo", gens: "100 generations" },
   { tier: "pro", price: "$79/mo", gens: "500 generations" },
   { tier: "studio", price: "$199/mo", gens: "2,500 generations" },
 ];
@@ -37,8 +37,9 @@ describe("subscription tier display", () => {
   }
 
   it("shows no stale price from the old tier set", () => {
-    // The exact numbers that were live in the UI while Stripe charged more.
-    for (const stale of ["$15/mo", "$25/mo", "$60/mo"]) {
+    // $15/$25/$60 was an old tier set the UI kept showing while Stripe charged
+    // more. $29 was the Starter price before it was set to $20.
+    for (const stale of ["$15/mo", "$25/mo", "$60/mo", "$29/mo"]) {
       const inTierRow = SRC.split("\n")
         .filter((l) => l.includes("tier:"))
         .some((l) => l.includes(stale));
