@@ -11,10 +11,15 @@ const PLAN_LABEL: Record<Plan, string> = {
   studio: "Studio",
 };
 
+// These MUST match the live Stripe prices — the user picks a tier here and Stripe
+// charges whatever STRIPE_<TIER>_PRICE_ID says. They drifted once (this list read
+// $15/$25/$60 while Stripe charged $29/$79/$199), so clicking "$15" opened a
+// checkout for $29. Verified against the live prices on 2026-07-31.
+// Generation counts mirror plan_limit() in the DB.
 const TIERS: { tier: PaidTier; price: string; gens: string }[] = [
-  { tier: "starter", price: "$15/mo", gens: "100 generations" },
-  { tier: "pro", price: "$25/mo", gens: "500 generations" },
-  { tier: "studio", price: "$60/mo", gens: "2,500 generations" },
+  { tier: "starter", price: "$29/mo", gens: "100 generations" },
+  { tier: "pro", price: "$79/mo", gens: "500 generations" },
+  { tier: "studio", price: "$199/mo", gens: "2,500 generations" },
 ];
 
 export function SubscriptionSection() {
