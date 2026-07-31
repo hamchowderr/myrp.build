@@ -97,6 +97,22 @@ export function CustomAuth(): React.JSX.Element {
     });
   }, [set]);
 
+  // The OTHER outcome: the attempt ended without a code. Before this existed the
+  // failure was silent — the loopback closed, the browser landed on
+  // connection-refused, and this screen sat on `busy` forever with no message.
+  // Found on the first real prod sign-in: attempt one expired, attempt two worked.
+  useEffect(() => {
+    return window.api.onAuthSignInFailed(({ reason, detail }) => {
+      const message =
+        reason === "timeout"
+          ? "Sign-in timed out — the browser didn't come back in time. Click Continue with Discord to try again."
+          : reason === "denied"
+            ? `Discord did not authorise the sign-in${detail ? ` (${detail})` : ""}. Click Continue with Discord to try again.`
+            : "Sign-in failed. Click Continue with Discord to try again.";
+      set({ busy: false, error: message });
+    });
+  }, [set]);
+
   const handleOAuth = useCallback(async () => {
     if (!supabase) {
       set({ error: "Auth is not configured." });
