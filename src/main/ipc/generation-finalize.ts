@@ -10,6 +10,7 @@ import { join } from "node:path";
 import log from "electron-log/main";
 import { appendEnsureLine, backupResourceSync, writeGenerationManifest } from "../fileWriter";
 import { logGeneration } from "../generation-log";
+import { DEFAULT_MODEL } from "../mastra/agent-config";
 import { scheduleAutoBackup } from "./backup";
 
 const LOCAL_DIR = "[local]";
@@ -141,7 +142,9 @@ export async function finalizeGeneration(
   // Capture for the feedback/fine-tune dataset. Fail-safe — never blocks.
   const generationId = await logGeneration({
     prompt: opts.prompt,
-    model: opts.model ?? process.env.MASTRA_MODEL ?? "anthropic/claude-sonnet-4-6",
+    // Keep in step with DEFAULT_MODEL (mastra/agent-config.ts) — this only labels
+    // the logged generation, but a stale id here misattributes the dataset.
+    model: opts.model ?? process.env.MASTRA_MODEL ?? DEFAULT_MODEL,
     ragUsed: opts.ragContext.length > 0,
     ragChunkCount: opts.ragContext.length,
     resourceName,

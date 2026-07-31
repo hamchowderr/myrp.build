@@ -25,8 +25,15 @@ import type { AgentControllerSubagent } from "@mastra/core/agent-controller";
 import { type AnyWorkspace, WORKSPACE_TOOLS } from "@mastra/core/workspace";
 import { GROUND_RULES } from "./ground-rules";
 
+// Model tiers for the specialists. Cheap/mechanical roles (scouting, lore lookup)
+// run on Haiku; the roles that WRITE or CHECK ox code run on Sonnet.
+//
+// Both ids verified live against the gateway. Haiku 4.5 is already the current
+// generation — the gateway normalises the hyphenated id to `claude-haiku-4.5`,
+// so this string is correct as written. Sonnet moved 4.5 -> 5, which also closes
+// a drift: the supervisor was on 4.6 while its own specialists were on 4.5.
 const HAIKU = "anthropic/claude-haiku-4-5";
-const SONNET = "anthropic/claude-sonnet-4-5";
+const SONNET = "anthropic/claude-sonnet-5";
 
 // Skill tools the workspace exposes when skills are configured (knowledge access).
 const SKILL_TOOLS = ["skill", "skill_search", "skill_read"];
