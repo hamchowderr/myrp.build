@@ -25,14 +25,26 @@ import type { AgentControllerSubagent } from "@mastra/core/agent-controller";
 import { type AnyWorkspace, WORKSPACE_TOOLS } from "@mastra/core/workspace";
 import { GROUND_RULES } from "./ground-rules";
 
-// Model tiers for the specialists. Cheap/mechanical roles (scouting, lore lookup)
-// run on Haiku; the roles that WRITE or CHECK ox code run on Sonnet.
+// EVERY specialist runs Sonnet 5 — same model as the supervisor. Verified live
+// against the gateway (HTTP 200) before being used here.
 //
-// Both ids verified live against the gateway. Haiku 4.5 is already the current
-// generation — the gateway normalises the hyphenated id to `claude-haiku-4.5`,
-// so this string is correct as written. Sonnet moved 4.5 -> 5, which also closes
-// a drift: the supervisor was on 4.6 while its own specialists were on 4.5.
-const HAIKU = "anthropic/claude-haiku-4-5";
+// This replaces a Haiku/Sonnet split where the cheap/mechanical roles (scouting,
+// lore lookup) ran Haiku 4.5. Two reasons it went:
+//
+//  1. PROMPT CACHING. Anthropic's minimum cacheable prompt is per-model —
+//     Sonnet 5 is 1,024 tokens, Haiku 4.5 is 4,096. Below the minimum, caching is
+//     silently skipped with NO error. GROUND_RULES alone is ~1,136 tokens, so a
+//     Haiku specialist's system message sat right around the threshold: it may or
+//     may not have cached, and nothing in the system would have told us. Uniform
+//     Sonnet 5 makes caching deterministic instead of a coin flip.
+//  2. One model across supervisor and specialists removes a whole class of
+//     version drift — the supervisor was on 4.6 while its specialists were on 4.5.
+//
+// The trade is real: Sonnet costs more per token than Haiku, so the mechanical
+// roles got more expensive. That is a deliberate bet that reliable caching beats a
+// cheaper per-token rate on prompts we re-send every step — and it is one line to
+// reintroduce a cheaper tier for scouting once cost-per-generation is actually
+// measured (myrp-build-fxe). Decide it from data, not from a guess either way.
 const SONNET = "anthropic/claude-sonnet-5";
 
 // Skill tools the workspace exposes when skills are configured (knowledge access).
@@ -116,7 +128,7 @@ const SPECIALISTS: SpecialistSpec[] = [
       "Read-only recon of existing server resources — reads fxmanifest files, scans for ox usage and naming conventions, catalogs existing resource names and exports. Never modifies files.",
     instructions:
       "You scout the server's existing resources to help the generator produce compatible, non-conflicting ox code. Use search and read tools to gather naming conventions, ox_lib/ox_inventory usage, and existing resource names. Report findings concisely. NEVER write or modify files.",
-    model: HAIKU,
+    model: SONNET,
     allowedWorkspaceTools: [...READ_TOOLS],
     usesWorkspace: true,
   },
@@ -149,7 +161,7 @@ const SPECIALISTS: SpecialistSpec[] = [
       "Generates GTA V lore-friendly parody names for businesses, brands, vehicles, locations, and items. Returns naming guidance only — writes no files.",
     instructions:
       "You generate lore-friendly parody names that fit Rockstar's satirical GTA V universe (businesses, brands, vehicles, districts, items). Return names + brief rationale as text. You do NOT write files. Load the lore skill for canonical references.",
-    model: HAIKU,
+    model: SONNET,
     // Text-only: skills for canonical lore, no filesystem/sandbox.
     allowedWorkspaceTools: [...SKILL_TOOLS],
     usesWorkspace: false,
@@ -172,7 +184,7 @@ const SPECIALISTS: SpecialistSpec[] = [
       "Read-only security review — source validation, server-authoritative economy, injection risks, rate limiting, ACE permission gaps in the FiveM client-server model.",
     instructions:
       "You audit a generated resource for FiveM security flaws: unvalidated net events, client-trusted economy/item logic, SQL built by string concatenation (use oxmysql parameters), missing rate limiting, and ACE permission gaps. Read-only. Report exploitable issues with the file/line and the fix. Load the security skill for patterns.",
-    model: HAIKU,
+    model: SONNET,
     allowedWorkspaceTools: [...READ_TOOLS],
     usesWorkspace: true,
   },
@@ -183,7 +195,7 @@ const SPECIALISTS: SpecialistSpec[] = [
       "Reads a generated resource and writes a README.md documenting features, events, exports, config, and setup. Owns README.md.",
     instructions:
       "You read the generated resource and write a clean README.md in the resource root: what it does, dependencies (ox_lib etc.), config keys, events/exports, and install steps. Accurate to the actual files — never invent features.",
-    model: HAIKU,
+    model: SONNET,
     // Reads everything, writes only README (write_file/edit_file — no mkdir/ast/sandbox).
     allowedWorkspaceTools: [
       ...READ_TOOLS,
