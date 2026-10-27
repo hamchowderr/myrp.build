@@ -57,3 +57,6 @@
 export.auto: true
 export:
     git-add: false
+
+sync:
+    remote: chowderr/myrp_build
