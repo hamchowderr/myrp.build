@@ -224,6 +224,10 @@ interface MyRPBuildAPI {
   gameviewStats: () => Promise<GameViewStats>;
   gameviewCapabilities: () => Promise<GameViewCapabilities>;
   onAuthSignInCode: (callback: (code: string) => void) => () => void;
+  /** A sign-in attempt ended WITHOUT a code (window expired, or Discord denied). */
+  onAuthSignInFailed: (
+    callback: (info: { reason: "timeout" | "denied" | "error"; detail?: string }) => void,
+  ) => () => void;
   onGameFrame: (callback: (frame: GameFrameMessage) => void) => () => void;
   orchestratorStart: (
     config: OrchestratorConfig,
