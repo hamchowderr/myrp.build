@@ -57,9 +57,12 @@ import { ContextBadges } from "./ContextBadges";
 // Anthropic models; the underlying AI Gateway stays provider-agnostic (agent.ts), so
 // this is a product-level curation, not a plumbing change. Ids are bare — main
 // normalizes them to `anthropic/<id>` (src/main/ipc/chat.ts).
+// All three verified live against the gateway before being offered here — an id
+// the gateway rejects fails the whole generation, and the picker is the one place
+// a user can choose one we never exercise ourselves.
 const ANTHROPIC_MODELS = [
-  { id: "claude-sonnet-4-6", label: "Sonnet 4.6", provider: "anthropic" as const },
-  { id: "claude-opus-4-6", label: "Opus 4.6", provider: "anthropic" as const },
+  { id: "claude-sonnet-5", label: "Sonnet 5", provider: "anthropic" as const },
+  { id: "claude-opus-5", label: "Opus 5", provider: "anthropic" as const },
   { id: "claude-haiku-4-5", label: "Haiku 4.5", provider: "anthropic" as const },
 ];
 const MODELS = ANTHROPIC_MODELS;

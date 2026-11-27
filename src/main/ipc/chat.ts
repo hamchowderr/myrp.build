@@ -363,7 +363,7 @@ export function registerChatHandlers(): void {
 
       const resourcesRoot = dirname(server.localPath);
       // Normalize the renderer's model id to a Mastra provider string. The UI
-      // sends a bare Claude id (e.g. "claude-opus-4-6"); prefix the provider when
+      // sends a bare Claude id (e.g. "claude-opus-5"); prefix the provider when
       // absent. Falls through to MASTRA_MODEL/default in the agent when undefined.
       const model = payload.model
         ? payload.model.includes("/")

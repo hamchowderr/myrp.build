@@ -30,8 +30,17 @@ import { FIVEM_INSTRUCTIONS } from "./prompt";
 import { RollingCacheBreakpoint } from "./rolling-cache";
 import { createSubAgents } from "./sub-agents";
 
-/** Default model (validated live). ox generation favors Sonnet; override via MASTRA_MODEL. */
-export const DEFAULT_MODEL = "anthropic/claude-sonnet-4-6";
+/**
+ * Default model (validated live against the gateway). ox generation favors
+ * Sonnet; override via MASTRA_MODEL.
+ *
+ * Sonnet 5 rather than Opus: the supervisor orchestrates — it plans, sizes the
+ * build and delegates — while the specialists write the Lua. Opus 5 is available
+ * on the gateway and offered in the model picker for users who want it, but
+ * making it the default multiplies the cost of every build for work that is
+ * mostly routing.
+ */
+export const DEFAULT_MODEL = "anthropic/claude-sonnet-5";
 
 /**
  * Context-window safety net. `maxSteps` bounds the loop COUNT; this bounds
@@ -99,7 +108,7 @@ export interface FiveMAgentOptions {
    */
   ragContext?: string[];
   /**
-   * Provider model string (Mastra magic string, e.g. "anthropic/claude-opus-4-6"),
+   * Provider model string (Mastra magic string, e.g. "anthropic/claude-opus-5"),
    * chosen per-turn in the UI. Falls back to MASTRA_MODEL then DEFAULT_MODEL.
    */
   model?: string;
