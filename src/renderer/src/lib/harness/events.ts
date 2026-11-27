@@ -15,6 +15,8 @@
  * through the reducer untouched.
  */
 
+import { applyMessageDelta, type MessageDelta, normaliseSignalMessage } from "./message-deltas";
+
 export type HarnessContentPart =
   | { type: "text"; text: string }
   | { type: "thinking"; thinking: string }
@@ -465,11 +467,18 @@ export function reduceHarnessEvent(state: HarnessTranscript, event: AnyEvent): H
     case "message_start":
     case "message_update":
     case "message_end": {
+      // 1.8x: id-addressed delta on an existing message (see message-deltas.ts).
+      if (!event.message && event.type === "message_update" && event.event) {
+        const target = state.messages.find((m) => m.id === event.id);
+        if (!target) return state;
+        const updated = applyMessageDelta(target, event.event as MessageDelta);
+        return { ...state, messages: upsertMessage(state.messages, updated) };
+      }
       if (!event.message) return state;
-      const incoming = {
+      const incoming = normaliseSignalMessage({
         ...(event.message as HarnessMessage),
         content: toContentParts((event.message as { content?: unknown }).content),
-      };
+      });
       // The Harness echoes the user turn as its own message (role=user, fresh id);
       // drop the optimistic placeholder we rendered on send so it isn't shown twice.
       // Assistant/system messages leave the placeholder untouched.

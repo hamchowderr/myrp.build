@@ -622,9 +622,15 @@ export function registerChatHandlers(): void {
       _event,
       payload: { decision: "approve" | "decline" | "always_allow_category"; toolCallId?: string },
     ) => {
+      // @mastra/core 1.8x requires the id: a response only releases the gate it
+      // names, so an id-less response can never resolve a different pending gate.
+      if (!payload.toolCallId) {
+        log.warn("[harness:approve] ignored — no toolCallId");
+        return;
+      }
       state.harnessSession?.respondToToolApproval({
         decision: payload.decision,
-        ...(payload.toolCallId ? { toolCallId: payload.toolCallId } : {}),
+        toolCallId: payload.toolCallId,
       });
     },
   );

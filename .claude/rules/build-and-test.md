@@ -10,34 +10,27 @@ Electron + electron-vite — **three targets** (main, preload, renderer). "Done"
 - `npm run dev` — Electron + Vite HMR.
 - `npm run build` / `npm run build:win` — compile-check build / signed Windows installer. `build:unpack:nosign` = fast unpacked exe.
 
-## Patched dependency — `@mastra/core` (read before bumping it)
+## `@mastra/core` — upstream fix shipped, patch retired (read before bumping it)
 
-`patches/@mastra+core+1.53.0.patch` ports **mastra-ai/mastra PR #19940** (fix for issue
-**#19814**) onto the published bundle. `postinstall` runs `patch-package --error-on-fail`, so a
-patch that stops applying **fails the install loudly** instead of silently reintroducing the bug.
+Until 1.53 we carried `patches/@mastra+core+1.53.0.patch`, a port of **mastra-ai/mastra PR
+#19940** (issue **#19814**): `#validateSuspendedToolCallTarget` discarded the snapshot holding the
+target suspension, so `resumeStream` rehydrated from a stale one and the agent lost its own tool
+results (measured live: 49 identical writes, 1.29M tokens, no `fxmanifest.lua`). The fix is in the
+published bundle by 1.86, so the patch and the `patch-package` postinstall step were removed.
 
-Without it the supervisor loop is unusable: `#validateSuspendedToolCallTarget` polls for the
-snapshot holding the target suspension and then discards it, so `resumeStream` rehydrates
-`MessageList` from the **stale** snapshot and loses the second auto-approved tool result. The agent
-then can't see its own work and rewrites the same file until the step budget trips (measured live:
-49 identical writes, 1.29M tokens, no `fxmanifest.lua`). Upstream's own trigger is a non-yolo
-`AgentController` plus a tool whose effective policy is `allow` — which is every `edit`-category
-tool we have.
+1.86 also changed two behaviours we depend on — both now handled, both pinned by tests:
+- **`permissionRules` is thread-scoped state.** Creating or switching a thread replaces the rules
+  with that thread's (empty for a new one), so every tool falls back to `ask` and an un-gated write
+  parks forever on approval. `applyFiveMPermissions` must run **after** the thread bind
+  (`sendHarnessTurn`, `runHarnessTurn`'s `prepareSession`).
+- **Messages stream as deltas.** One `message_start` with the initial message, id-addressed
+  `message_update` deltas (`text-delta` / `reasoning-delta` / `part`), and an id-only
+  `message_end`. The renderer folds them in `lib/harness/message-deltas.ts`.
 
-Because we consume the built package, the patch edits **both** bundles (`dist/chunk-3S5BFAEP.js`
-ESM and `dist/chunk-ODHD3TLJ.cjs` CJS), six sites each. Source maps go stale (cosmetic).
-
-**Bumping `@mastra/core` (incl. via `npm update`, which currently wants 1.55.0):**
-1. Check whether #19940 merged and shipped. If yes → delete the patch file and the
-   `patch-package` step, then confirm `tests/mastra/loop-context.test.ts` still passes.
-2. If not → re-port the six edits and re-run `npx patch-package @mastra/core`. **1.55.0 does not
-   contain the fix** (verified by upgrading all five `@mastra/*` and re-running the repro).
-3. Either way the gate is `tests/mastra/loop-context.test.ts` — "carries each step's tool result
-   into the next request" fails if the patch is missing.
-
-Do **not** work around a failing patch by disabling `--error-on-fail`. Yolo mode is also not an
-escape: it fixes the loop but voids ALL approval gating, including live-server deploys and host
-shell execution — measured in `tests/mastra/yolo-approval.test.ts`, which pins that behaviour.
+The gate on any bump is still `tests/mastra/loop-context.test.ts` ("carries each step's tool
+result into the next request"; it hangs, rather than fails, if the permission rules are lost).
+Yolo mode is not an escape hatch: it voids ALL approval gating, including live-server deploys and
+host shell execution — pinned in `tests/mastra/yolo-approval.test.ts`.
 
 ## Maintenance checks
 - `npm run deps:check` — dependency drift + advisory gate. Fails on **in-range drift** (a dep behind

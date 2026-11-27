@@ -47,14 +47,10 @@ function withStepBreaker(
 ): (event: HarnessWireEvent) => void {
   let modelCalls = 0;
   let tripped = false;
-  return (event: HarnessWireEvent): void => {
-    send(event);
-    if (tripped || (event as { type?: string }).type !== "usage_update") return;
-    modelCalls += 1;
-    // Trip on EXCEEDING the budget, not on reaching it: a run that legitimately
-    // finishes on its last allowed call must not be aborted with an error just as
-    // it completes. The cost is one extra model call before the abort lands.
-    if (modelCalls <= budget) return;
+  // Whether the run's latest output was a tool call (vs. assistant text). Used
+  // to tell a budget cut from a legitimate finish on the final allowed call.
+  let endedOnTool = false;
+  const reportBudget = (): void => {
     tripped = true;
     send({
       type: "error",
@@ -62,6 +58,29 @@ function withStepBreaker(
         `Step budget reached (${budget} model calls) — the run was stopped to avoid ` +
         `an unbounded loop. This usually means the agent stopped making progress.`,
     } as HarnessWireEvent);
+  };
+  return (event: HarnessWireEvent): void => {
+    const type = (event as { type?: string }).type;
+    if (type === "agent_end" && !tripped && modelCalls >= budget && endedOnTool) {
+      // Since @mastra/core 1.8x the loop honours maxSteps itself and ends with
+      // `agent_end: complete` exactly AT the budget, so the over-budget trip below
+      // never fires. Still tell the user why the run stopped mid-work.
+      reportBudget();
+    }
+    send(event);
+    if (tripped) return;
+    if (type === "tool_end") endedOnTool = true;
+    else if (type === "message_update") {
+      const inner = (event as { event?: { type?: string; part?: { type?: string } } }).event;
+      if (inner?.type === "text-delta" || inner?.part?.type === "text") endedOnTool = false;
+    }
+    if (type !== "usage_update") return;
+    modelCalls += 1;
+    // Trip on EXCEEDING the budget, not on reaching it: a run that legitimately
+    // finishes on its last allowed call must not be aborted with an error just as
+    // it completes. The cost is one extra model call before the abort lands.
+    if (modelCalls <= budget) return;
+    reportBudget();
     session.abort();
   };
 }
@@ -259,6 +278,8 @@ export interface HarnessRuntime {
   readonly resourceId: string;
   /** Identity for reuse — a new conversation (different key) rebuilds. */
   readonly key: string;
+  /** The Settings approval toggle this runtime was built with (re-applied per thread). */
+  readonly requireApproval?: boolean;
   /** Point event forwarding at the current turn's sink (reset each turn). */
   setForward(fn: (event: HarnessWireEvent) => void): void;
   /** Tear down the persistent event subscription. */
@@ -282,8 +303,10 @@ export interface BuildHarnessRuntimeOptions extends Omit<FiveMHarnessOptions, "s
 
 /**
  * Build + init a persistent Harness runtime and subscribe once. The HITL policy
- * (applyFiveMPermissions) is applied here — it's idempotent and persists to
- * session state, so once-at-build is correct for a reused session.
+ * (applyFiveMPermissions) is applied here AND again after every thread bind in
+ * sendHarnessTurn: since @mastra/core 1.8x, `permissionRules` is thread-derived
+ * state, so creating or switching a thread replaces the rules with that
+ * thread's (empty for a new thread) and every tool falls back to "ask".
  */
 export async function buildHarnessRuntime(
   resourcesRoot: string,
@@ -316,6 +339,7 @@ export async function buildHarnessRuntime(
     session,
     resourceId: resolvedResourceId,
     key,
+    requireApproval,
     setForward: (fn) => {
       forward = fn;
     },
@@ -367,6 +391,8 @@ export async function sendHarnessTurn(
   } else {
     threadId = (await session.thread.create({ title: "Chat" })).id;
   }
+  // Rules are thread-scoped state: re-apply after the bind (see buildHarnessRuntime).
+  await applyFiveMPermissions(session, { requireApproval: runtime.requireApproval });
   opts.send({ type: "__thread__", threadId });
 
   let suspended = false;

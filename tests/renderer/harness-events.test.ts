@@ -766,3 +766,51 @@ describe("uiMessagesToHarness", () => {
     expect(msgs[0].content).toEqual([{ type: "text", text: "hi" }]);
   });
 });
+
+describe("@mastra/core 1.8x delta stream", () => {
+  it("folds message_start + text/part deltas + id-only end into one message", () => {
+    const t = reduceHarnessEvents(emptyTranscript(), [
+      {
+        type: "message_start",
+        message: {
+          id: "s1",
+          role: "signal",
+          content: {
+            format: 2,
+            parts: [{ type: "data-user-message", data: { type: "user", contents: "ping" } }],
+          },
+        },
+      },
+      {
+        type: "message_start",
+        message: {
+          id: "a1",
+          role: "assistant",
+          content: { format: 2, parts: [{ type: "text", text: "" }] },
+        },
+      },
+      { type: "message_update", id: "a1", event: { type: "text-delta", delta: "pong " } },
+      { type: "message_update", id: "a1", event: { type: "text-delta", delta: "from ox" } },
+      {
+        type: "message_update",
+        id: "a1",
+        event: { type: "part", index: 1, part: { type: "tool-invocation", toolInvocation: {} } },
+      },
+      { type: "message_update", id: "a1", event: { type: "text-delta", delta: "done" } },
+      { type: "message_end", id: "a1" },
+    ]);
+    const user = t.messages.find((m) => m.id === "s1");
+    expect(user).toMatchObject({ role: "user", content: [{ type: "text", text: "ping" }] });
+    const a = t.messages.find((m) => m.id === "a1");
+    expect(a?.content.map((p) => p.type)).toEqual(["text", "tool-invocation", "text"]);
+    expect(a?.content[0]).toMatchObject({ text: "pong from ox" });
+    expect(a?.content[2]).toMatchObject({ text: "done" });
+  });
+
+  it("ignores a delta for an unknown message id", () => {
+    const t = reduceHarnessEvents(emptyTranscript(), [
+      { type: "message_update", id: "nope", event: { type: "text-delta", delta: "x" } },
+    ]);
+    expect(t.messages).toHaveLength(0);
+  });
+});

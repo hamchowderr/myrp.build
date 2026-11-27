@@ -90,7 +90,12 @@ describe("tool-level requireApproval survives yolo", () => {
         events.push(e);
         if (e.type === "tool_approval_required" && !responded) {
           responded = true;
-          queueMicrotask(() => session?.respondToToolApproval({ decision: "decline" }));
+          queueMicrotask(() =>
+            session?.respondToToolApproval({
+              decision: "decline",
+              toolCallId: String(e.toolCallId),
+            }),
+          );
         }
       },
     });
@@ -194,7 +199,12 @@ describe("workspace-level requireApproval under yolo", () => {
         if (e.type === "tool_approval_required" && !responded) {
           responded = true;
           gated = true;
-          queueMicrotask(() => session?.respondToToolApproval({ decision: "decline" }));
+          queueMicrotask(() =>
+            session?.respondToToolApproval({
+              decision: "decline",
+              toolCallId: String(e.toolCallId),
+            }),
+          );
         }
       },
     });
