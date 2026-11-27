@@ -52,6 +52,11 @@ shell execution — measured in `tests/mastra/yolo-approval.test.ts`, which pins
 - `npm run ox:currency` — check the `ox_*` versions pinned in `docs/ox-server-setup.md` against the latest Overextended releases (via `gh`). CI-ready; exits non-zero when a pinned version is behind. Run it after touching ox versions instead of checking by hand.
 
 ## Releasing (`scripts/release.mjs`)
+> **Full runbook: `docs/releasing.md`** — the four links (sign → build → publish → update),
+> the MANDATORY post-publish check (the first release ever cut produced TWO drafts with the
+> assets split, and the build log said success), and how the updater actually resolves
+> `latest.yml`. Read it before cutting or debugging a release.
+
 - `npm run release:check` — preflight only, no build. Verifies: on `main`, clean tree, synced
   with origin, version not already released, the `TrustedSigning` module, the three Azure
   credentials + a GitHub token (**by length only — never printed**), and the bundled
