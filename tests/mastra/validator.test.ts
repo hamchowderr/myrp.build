@@ -166,10 +166,65 @@ describe("validateResource", () => {
     // The correct server-side form IS a TriggerClientEvent, so a rule keyed on
     // the trigger rather than the event name would reject correct ox code.
     writeResource("oxnotify", {
-      "fxmanifest.lua": `fx_version 'cerulean'\ngame 'gta5'\nserver_scripts { 'server/main.lua' }\ndependencies { 'ox_lib' }\n`,
+      "fxmanifest.lua": `fx_version 'cerulean'\ngame 'gta5'\nshared_scripts { '@ox_lib/init.lua' }\nserver_scripts { 'server/main.lua' }\ndependencies { 'ox_lib' }\n`,
       "server/main.lua": `lib.addCommand('ping', {}, function(source)\n    TriggerClientEvent('ox_lib:notify', source, { description = 'pong', type = 'success' })\nend)\n`,
     });
     const issues = await validateResource(root, "oxnotify");
+    expect(issues.filter((i) => i.severity === "error")).toHaveLength(0);
+  });
+
+  // ---------------------------------------------------------------------
+  // Script sides. Measured live on Mastra 1.86: a /ping request produced
+  // lib.addCommand in client/main.lua with dependency 'ox_lib' and no
+  // @ox_lib/init.lua, and this validator passed it. Both crash at runtime.
+  // ---------------------------------------------------------------------
+
+  it("flags lib.* when only dependency 'ox_lib' is declared (init.lua missing)", async () => {
+    writeResource("noinit", {
+      "fxmanifest.lua": `fx_version 'cerulean'\ngame 'gta5'\nserver_scripts { 'server/main.lua' }\ndependencies { 'ox_lib' }\n`,
+      "server/main.lua": `lib.addCommand('ping', {}, function(source) end)\n`,
+    });
+    const issues = await validateResource(root, "noinit");
+    expect(
+      issues.some(
+        (i) => i.severity === "error" && /@ox_lib\/init\.lua.*not loaded/.test(i.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("flags a server-only lib function in a client script", async () => {
+    writeResource("clientcmd", {
+      "fxmanifest.lua": `fx_version 'cerulean'\ngame 'gta5'\nshared_scripts { '@ox_lib/init.lua' }\nclient_scripts { 'client/main.lua' }\ndependencies { 'ox_lib' }\n`,
+      "client/main.lua": `lib.addCommand('ping', {}, function() lib.notify({ description = 'pong' }) end)\n`,
+    });
+    const issues = await validateResource(root, "clientcmd");
+    expect(
+      issues.some(
+        (i) => i.severity === "error" && /lib\.addCommand is server-only/.test(i.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("flags a client-only lib function in a server script", async () => {
+    writeResource("serverui", {
+      "fxmanifest.lua": `fx_version 'cerulean'\ngame 'gta5'\nshared_scripts { '@ox_lib/init.lua' }\nserver_scripts { 'server/main.lua' }\ndependencies { 'ox_lib' }\n`,
+      "server/main.lua": `RegisterNetEvent('x', function() lib.progressBar({ duration = 1000 }) end)\n`,
+    });
+    const issues = await validateResource(root, "serverui");
+    expect(
+      issues.some(
+        (i) => i.severity === "error" && /lib\.progressBar is client-only/.test(i.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("does NOT flag correct split client/server ox code (zero false-positive)", async () => {
+    writeResource("splitok", {
+      "fxmanifest.lua": `fx_version 'cerulean'\ngame 'gta5'\nshared_scripts { '@ox_lib/init.lua' }\nclient_scripts { 'client/main.lua' }\nserver_scripts { 'server/main.lua' }\ndependencies { 'ox_lib' }\n`,
+      "client/main.lua": `-- lib.addCommand is server-only, so it lives in server/main.lua\nRegisterNetEvent('ping:done', function()\n    lib.notify({ description = 'pong', type = 'success' })\nend)\n`,
+      "server/main.lua": `lib.addCommand('ping', {}, function(source)\n    TriggerClientEvent('ping:done', source)\nend)\n`,
+    });
+    const issues = await validateResource(root, "splitok");
     expect(issues.filter((i) => i.severity === "error")).toHaveLength(0);
   });
 
@@ -196,7 +251,7 @@ describe("validateResource", () => {
 
   it("does NOT flag a correctly placed resource as misplaced (zero false-positive, 8r3)", async () => {
     writeResource("wellplaced", {
-      "fxmanifest.lua": `fx_version 'cerulean'\ngame 'gta5'\nserver_scripts { 'server/main.lua' }\ndependencies { 'ox_lib' }\n`,
+      "fxmanifest.lua": `fx_version 'cerulean'\ngame 'gta5'\nshared_scripts { '@ox_lib/init.lua' }\nserver_scripts { 'server/main.lua' }\ndependencies { 'ox_lib' }\n`,
       "server/main.lua": `lib.addCommand('ok', {}, function() end)\n`,
     });
     const issues = await validateResource(root, "wellplaced");

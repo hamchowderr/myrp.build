@@ -60,21 +60,36 @@ describe("createFiveMHarness end-to-end run", () => {
     expect(types).toContain("display_state_changed"); // the DisplayState-driven surface
     expect(types).toContain("usage_update"); // token-usage stream
 
-    // The assistant reply arrives as Mastra's MastraDBMessage: `content` is
-    // MastraMessageContentV2 — `{ format: 2, parts: [{type:'text',text}] }`, not a
-    // bare parts array. The renderer unwraps this in reduceHarnessEvent; assert on
-    // the raw contract here so a future shape change fails loudly.
-    const assistant = events
-      .filter((e) => e.type === "message_end")
-      .map((e) => e.message)
-      .find((m) => m?.role === "assistant");
-    expect(assistant).toBeTruthy();
-    const content = assistant?.content as { parts?: Array<{ type: string; text?: string }> };
-    const parts = content?.parts ?? [];
-    const text = parts
+    // The assistant reply streams as ONE message_start carrying the initial
+    // MastraDBMessage (`content` is `{ format: 2, parts: [...] }`), then
+    // id-addressed `message_update` deltas, then an id-only `message_end`
+    // (@mastra/core >= 1.8x). The renderer folds this in reduceHarnessEvent
+    // (message-deltas.ts); assert on the raw contract here so a future shape
+    // change fails loudly.
+    type Raw = {
+      type: string;
+      id?: string;
+      message?: {
+        id?: string;
+        role?: string;
+        content?: { parts?: Array<{ type: string; text?: string }> };
+      };
+      event?: { type: string; delta?: string };
+    };
+    const raw = events as unknown as Raw[];
+    const start = raw.find((e) => e.type === "message_start" && e.message?.role === "assistant");
+    expect(start).toBeTruthy();
+    const id = start?.message?.id;
+    expect(raw.some((e) => e.type === "message_end" && e.id === id)).toBe(true);
+    const initial = (start?.message?.content?.parts ?? [])
       .filter((p) => p.type === "text")
       .map((p) => p.text ?? "")
       .join("");
+    const deltas = raw
+      .filter((e) => e.type === "message_update" && e.id === id && e.event?.type === "text-delta")
+      .map((e) => e.event?.delta ?? "")
+      .join("");
+    const text = initial + deltas;
     expect(text).toContain("pong from ox");
   }, 60_000);
 });

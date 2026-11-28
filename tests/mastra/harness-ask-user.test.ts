@@ -59,7 +59,6 @@ describe("Harness ask_user suspension + resume (AIMock + FiveM policy)", () => {
 
   it("suspends on ask_user (not approval), resumes with the answer, completes", async () => {
     const session = await harness.createSession({ resourceId: "ws_t__srv_t" });
-    await applyFiveMPermissions(session, { requireApproval: true });
     const events: HarnessWireEvent[] = [];
     // Braces matter: `push` returns a number and the listener is typed
     // `void | Promise<void>`, so a bare expression body is a type error.
@@ -67,6 +66,9 @@ describe("Harness ask_user suspension + resume (AIMock + FiveM policy)", () => {
       events.push(e as HarnessWireEvent);
     });
     await session.thread.create({ title: "Chat" });
+    // After the thread exists: permission rules are thread-scoped state, so rules
+    // applied before create() are replaced by the new thread's (empty) rules.
+    await applyFiveMPermissions(session, { requireApproval: true });
 
     // sendMessage resolves at the suspension (the run pauses for the answer).
     await session.sendMessage({ content: "ask me which framework" });

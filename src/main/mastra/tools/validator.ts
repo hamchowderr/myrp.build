@@ -33,6 +33,7 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import log from "../log";
 import { hasRuntimeEntrypoint, luaRuleIssues } from "./lua-rules";
+import { oxSideIssues, scriptSides, sideFor } from "./ox-side-rules";
 
 const LOCAL_DIR = "[local]";
 
@@ -367,6 +368,7 @@ export async function validateResource(
   // Orphan check + forbidden-pattern scan over .lua/.html on disk.
   const onDisk = await listFilesRecursive(dir);
   const usesOxLib = manifest.includes("@ox_lib/init.lua") || /['"]ox_lib['"]/.test(manifest);
+  const { sideOf, initOn } = scriptSides((keys) => manifestEntries(manifest, keys));
   let referencesLib = false;
   let hasEntrypoint = false;
   for (const abs of onDisk) {
@@ -390,6 +392,7 @@ export async function validateResource(
     if (rel.endsWith(".lua")) {
       const content = await readFile(abs, "utf-8");
       issues.push(...luaRuleIssues(rel, content));
+      issues.push(...oxSideIssues(rel, content, sideFor(rel, sideOf), initOn));
       if (usesBacktickString(content)) {
         issues.push({
           severity: "error",
@@ -416,7 +419,7 @@ export async function validateResource(
     issues.push({
       severity: "error",
       message: referencesLib
-        ? "Code uses ox_lib (lib.*) but fxmanifest doesn't load it — add shared_script '@ox_lib/init.lua' or dependency 'ox_lib'"
+        ? "Code uses ox_lib (lib.*) but fxmanifest doesn't load it — add shared_scripts { '@ox_lib/init.lua' } and dependency 'ox_lib'"
         : "fxmanifest must declare the ox_lib dependency (dependency 'ox_lib' or shared_script '@ox_lib/init.lua') — required for every ox resource, including config-only",
       file: "fxmanifest.lua",
     });

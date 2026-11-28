@@ -75,7 +75,9 @@ describe("Harness HITL approval (AIMock + FiveM policy)", () => {
         if (e.type === "tool_approval_required" && !responded) {
           responded = true;
           // Defer out of the emit dispatch to avoid re-entrancy into the run loop.
-          queueMicrotask(() => session?.respondToToolApproval({ decision }));
+          queueMicrotask(() =>
+            session?.respondToToolApproval({ decision, toolCallId: String(e.toolCallId) }),
+          );
         }
       },
     });
